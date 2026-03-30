@@ -1,6 +1,0 @@
-[phases.build]
-cmds = [
-  "composer install --ignore-platform-req=ext-bcmath --optimize-autoloader --no-interaction",
-  "npm install",
-  "npm run build"
-]
