@@ -1,4 +1,4 @@
-import ApplicationLogo from '@components/ApplicationLogo';
+import ApplicationLogo from '@/components/ApplicationLogo';
 import Dropdown from '@/components/Dropdown';
 import NavLink from '@/components/NavLink';
 import ResponsiveNavLink from '@/components/ResponsiveNavLink';
