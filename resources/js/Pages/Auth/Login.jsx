@@ -1,6 +1,6 @@
-import Checkbox from '@/Components/Checkbox';
-import InputError from '@/Components/InputError';
-import TextInput from '@/Components/TextInput';
+import Checkbox from '@/components/Checkbox';
+import InputError from '@/components/InputError';
+import TextInput from '@/components/TextInput';
 import { Head, useForm } from '@inertiajs/react';
 
 export default function Login({ status }) {
