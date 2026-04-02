@@ -294,7 +294,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div style={{ height: "100vh", width: "100vw", display: "flex", flexDirection: "column", background: "#0f1117", overflow: "hidden" }}>
+    <div style={{ height: "100dvh", width: "100vw", display: "flex", flexDirection: "column", background: "#0f1117", overflow: "hidden" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap');
         * { box-sizing: border-box; }
@@ -476,14 +476,15 @@ export default function Home() {
           <VolqueteList volquetes={filteredVolquetes} selectedId={selectedVolquete?.id ?? null} onSelect={handleSelectVolquete} filterStatus={filterStatus} onFilterChange={setFilterStatus} searchQuery={searchQuery} onSearchChange={setSearchQuery} />
         </aside>
 
+        {/* ── Paneles móviles — usan bottom con safe area ── */}
         {!isDesktop && mobileTab === "list" && (
-          <div style={{ position: "fixed", top: 56, left: 0, right: 0, bottom: 56, zIndex: 9998, background: "#0f1117f5", backdropFilter: "blur(6px)" }}>
+          <div style={{ position: "fixed", top: 56, left: 0, right: 0, bottom: "calc(56px + env(safe-area-inset-bottom))", zIndex: 9998, background: "#0f1117f5", backdropFilter: "blur(6px)" }}>
             <VolqueteList volquetes={filteredVolquetes} selectedId={selectedVolquete?.id ?? null} onSelect={(v) => { handleSelectVolquete(v); setMobileTab("map"); }} filterStatus={filterStatus} onFilterChange={setFilterStatus} searchQuery={searchQuery} onSearchChange={setSearchQuery} />
           </div>
         )}
 
         {!isDesktop && mobileTab === "stats" && (
-          <div style={{ position: "fixed", top: 56, left: 0, right: 0, bottom: 56, zIndex: 9998, background: "#0f1117f5", backdropFilter: "blur(6px)", overflow: "hidden" }}>
+          <div style={{ position: "fixed", top: 56, left: 0, right: 0, bottom: "calc(56px + env(safe-area-inset-bottom))", zIndex: 9998, background: "#0f1117f5", backdropFilter: "blur(6px)", overflow: "hidden" }}>
             <StatsPanel volquetes={volquetes} onClose={() => setMobileTab("map")} />
           </div>
         )}
@@ -511,7 +512,7 @@ export default function Home() {
         )}
 
         {!isDesktop && mobileDetailOpen && selectedVolquete && (
-          <div style={{ position: "fixed", top: 56, left: 0, right: 0, bottom: 56, zIndex: 9999, background: "#0f1117f5", backdropFilter: "blur(6px)", overflow: "hidden" }}>
+          <div style={{ position: "fixed", top: 56, left: 0, right: 0, bottom: "calc(56px + env(safe-area-inset-bottom))", zIndex: 9999, background: "#0f1117f5", backdropFilter: "blur(6px)", overflow: "hidden" }}>
             <VolqueteSidebar volquete={selectedVolquete} onClose={() => setMobileDetailOpen(false)} onDelete={() => handleDeleteVolquete(selectedVolquete.id)} onColocar={handleColocar} onRetirar={handleRetirar} onReemplazar={handleReemplazar} />
           </div>
         )}
@@ -521,8 +522,22 @@ export default function Home() {
         )}
       </div>
 
-      {/* ── Mobile bottom nav ── */}
-      <div style={{ height: 56, flexShrink: 0, borderTop: "1px solid #1e2130", background: "#0a0d14", display: "flex", alignItems: "center", justifyContent: "space-around", position: "relative", zIndex: 10000 }} className="md-hidden">
+      {/* ── Mobile bottom nav — con safe area ── */}
+      <div
+        className="md-hidden"
+        style={{
+          height: "calc(56px + env(safe-area-inset-bottom))",
+          paddingBottom: "env(safe-area-inset-bottom)",
+          flexShrink: 0,
+          borderTop: "1px solid #1e2130",
+          background: "#0a0d14",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-around",
+          position: "relative",
+          zIndex: 10000,
+        }}
+      >
         {(["map", "list", "stats"] as MobileTab[]).map((tab) => {
           const labels: Record<MobileTab, string> = { map: "Mapa", list: "Lista", stats: "Stats" };
           const icons: Record<MobileTab, React.ReactNode> = {
