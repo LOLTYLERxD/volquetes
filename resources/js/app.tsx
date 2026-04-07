@@ -1,10 +1,6 @@
 import "../css/app.css";
 import "./bootstrap";
-import { registerSW } from 'virtual:pwa-register'; // 👈 agregar
-registerSW({ immediate: true });                   // 👈 agregar
 
-import "../css/app.css";
-// ... resto del código igual
 import { createInertiaApp } from "@inertiajs/react";
 import { createRoot } from "react-dom/client";
 import { Toaster } from "@/components/ui/toaster";
