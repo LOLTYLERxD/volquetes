@@ -10,11 +10,20 @@ use App\Models\Volquete;
 use App\Models\AlquilerCerrado;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class AlquilerVolqueteController extends Controller
 {
-    private const COSTO_SERVICIO_ARS = 52000;
     private int $umbralDias = 7;
+
+    private function costoServicio(): int
+    {
+        $valor = DB::table('tipos_volquete')
+            ->where('nombre', 'estandar')
+            ->value('precio_servicio_ars');
+
+        return (int) ($valor ?? 52000);
+    }
 
     public function index()
     {
@@ -29,9 +38,9 @@ class AlquilerVolqueteController extends Controller
     public function stats(Volquete $volquete)
     {
         $movimientosTotal = (int) $volquete->movimientos()->count();
-        $trasladosTotal = (int) $volquete->movimientos()->where('tipo','traslado')->count();
-        $colocacionesTotal = (int) $volquete->movimientos()->where('tipo','colocacion')->count();
-        $retirosTotal = (int) $volquete->movimientos()->where('tipo','retiro')->count();
+        $trasladosTotal = (int) $volquete->movimientos()->where('tipo', 'traslado')->count();
+        $colocacionesTotal = (int) $volquete->movimientos()->where('tipo', 'colocacion')->count();
+        $retirosTotal = (int) $volquete->movimientos()->where('tipo', 'retiro')->count();
         $reemplazosTotal = (int) $volquete->movimientos()->where('nota', 'like', 'reemplazo%')->count();
 
         $alquileresTotal = (int) $volquete->alquileres()->count();
@@ -51,17 +60,20 @@ class AlquilerVolqueteController extends Controller
         ]);
     }
 
-public function actualizarNota(Request $request, Volquete $volquete)
-{
-    $data = $request->validate([
-        'nota' => ['nullable', 'string', 'max:500'],
-    ]);
-    $alquiler = $volquete->alquileres()->whereNull('fecha_retiro')->first();
-    if ($alquiler) {
-        $alquiler->update(['nota' => $data['nota'] ?? null]);
+    public function actualizarNota(Request $request, Volquete $volquete)
+    {
+        $data = $request->validate([
+            'nota' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $alquiler = $volquete->alquileres()->whereNull('fecha_retiro')->first();
+
+        if ($alquiler) {
+            $alquiler->update(['nota' => $data['nota'] ?? null]);
+        }
+
+        return response()->json($this->dto($volquete->fresh()->load('alquilerActual')));
     }
-    return response()->json($this->dto($volquete->fresh()->load('alquilerActual')));
-}
 
     public function alquileres(Volquete $volquete)
     {
@@ -77,9 +89,11 @@ public function actualizarNota(Request $request, Volquete $volquete)
                 $inicio = $a->fecha_colocacion ? Carbon::parse($a->fecha_colocacion) : null;
                 $fin = $a->fecha_retiro ? Carbon::parse($a->fecha_retiro) : null;
                 $dias = null;
+
                 if ($inicio) {
                     $dias = ($fin ?? now())->diffInDays($inicio);
                 }
+
                 return [
                     'id' => $a->id,
                     'fechaColocacion' => optional($a->fecha_colocacion)->format('Y-m-d'),
@@ -124,13 +138,13 @@ public function actualizarNota(Request $request, Volquete $volquete)
     public function colocar(Request $request, Volquete $volquete)
     {
         $data = $request->validate([
-            'direccion' => ['required','string','max:255'],
-            'cliente' => ['nullable','string','max:255'],
-            'lat' => ['required','numeric'],
-            'lng' => ['required','numeric'],
-            'fecha' => ['nullable','date'],
-            'motivo' => ['nullable','string','max:80'],
-            'nota' => ['nullable','string','max:500'],
+            'direccion' => ['required', 'string', 'max:255'],
+            'cliente' => ['nullable', 'string', 'max:255'],
+            'lat' => ['required', 'numeric'],
+            'lng' => ['required', 'numeric'],
+            'fecha' => ['nullable', 'date'],
+            'motivo' => ['nullable', 'string', 'max:80'],
+            'nota' => ['nullable', 'string', 'max:500'],
         ]);
 
         if (!$volquete->es_privado) {
@@ -162,7 +176,9 @@ public function actualizarNota(Request $request, Volquete $volquete)
 
         $abierto = $volquete->alquileres()->whereNull('fecha_retiro')->exists();
         if ($abierto) {
-            return response()->json(['message' => 'Este volquete ya tiene un alquiler activo. Primero retíralo.'], 409);
+            return response()->json([
+                'message' => 'Este volquete ya tiene un alquiler activo. Primero retíralo.'
+            ], 409);
         }
 
         $fechaColoc = isset($data['fecha'])
@@ -211,15 +227,16 @@ public function actualizarNota(Request $request, Volquete $volquete)
         ];
 
         $existente = DineroMovimiento::where($match)->first();
+
         if ($existente) {
             $existente->update([
-                'monto_ars' => (int) $existente->monto_ars + self::COSTO_SERVICIO_ARS,
+                'monto_ars' => (int) $existente->monto_ars + $this->costoServicio(),
                 'nota' => 'colocación (auto)',
                 'movimiento_id' => $movColoc->id,
             ]);
         } else {
             DineroMovimiento::create([
-                'monto_ars' => self::COSTO_SERVICIO_ARS,
+                'monto_ars' => $this->costoServicio(),
                 'nota' => 'colocación (auto)',
                 'movimiento_id' => $movColoc->id,
                 ...$match,
@@ -232,10 +249,10 @@ public function actualizarNota(Request $request, Volquete $volquete)
     public function reemplazar(Request $request, Volquete $volquete)
     {
         $data = $request->validate([
-            'direccion' => ['nullable','string','max:255'],
-            'lat' => ['nullable','numeric'],
-            'lng' => ['nullable','numeric'],
-            'nota' => ['nullable','string','max:500'],
+            'direccion' => ['nullable', 'string', 'max:255'],
+            'lat' => ['nullable', 'numeric'],
+            'lng' => ['nullable', 'numeric'],
+            'nota' => ['nullable', 'string', 'max:500'],
         ]);
 
         $direccion = $data['direccion'] ?? $volquete->direccion;
@@ -267,15 +284,16 @@ public function actualizarNota(Request $request, Volquete $volquete)
                 ];
 
                 $existente = DineroMovimiento::where($match)->first();
+
                 if ($existente) {
                     $existente->update([
-                        'monto_ars' => (int) $existente->monto_ars + self::COSTO_SERVICIO_ARS,
+                        'monto_ars' => (int) $existente->monto_ars + $this->costoServicio(),
                         'nota' => 'reemplazo (auto)',
                         'movimiento_id' => $movReemp->id,
                     ]);
                 } else {
                     DineroMovimiento::create([
-                        'monto_ars' => self::COSTO_SERVICIO_ARS,
+                        'monto_ars' => $this->costoServicio(),
                         'nota' => 'reemplazo (auto)',
                         'movimiento_id' => $movReemp->id,
                         ...$match,
@@ -309,14 +327,16 @@ public function actualizarNota(Request $request, Volquete $volquete)
         }
 
         $data = $request->validate([
-            'fecha' => ['nullable','date'],
-            'motivo' => ['nullable','string','max:80'],
-            'nota' => ['nullable','string','max:500'],
+            'fecha' => ['nullable', 'date'],
+            'motivo' => ['nullable', 'string', 'max:80'],
+            'nota' => ['nullable', 'string', 'max:500'],
         ]);
 
         $alquiler = $volquete->alquileres()->whereNull('fecha_retiro')->first();
         if (!$alquiler) {
-            return response()->json(['message' => 'Este volquete no tiene un alquiler activo para retirar.'], 409);
+            return response()->json([
+                'message' => 'Este volquete no tiene un alquiler activo para retirar.'
+            ], 409);
         }
 
         $alquiler->update([
@@ -372,8 +392,11 @@ public function actualizarNota(Request $request, Volquete $volquete)
     public function destroy(Volquete $volquete)
     {
         $abierto = $volquete->alquileres()->whereNull('fecha_retiro')->exists();
+
         if ($abierto) {
-            return response()->json(['message' => 'No se puede eliminar: tiene un alquiler activo. Retíralo primero.'], 409);
+            return response()->json([
+                'message' => 'No se puede eliminar: tiene un alquiler activo. Retíralo primero.'
+            ], 409);
         }
 
         $volquete->delete();
@@ -392,8 +415,8 @@ public function actualizarNota(Request $request, Volquete $volquete)
         }
 
         $movimientosTotal = (int) $v->movimientos()->count();
-        $trasladosTotal   = (int) $v->movimientos()->where('tipo', 'traslado')->count();
-        $reemplazosTotal  = (int) $v->movimientos()->where('nota', 'like', 'reemplazo%')->count();
+        $trasladosTotal = (int) $v->movimientos()->where('tipo', 'traslado')->count();
+        $reemplazosTotal = (int) $v->movimientos()->where('nota', 'like', 'reemplazo%')->count();
         $dineroTotal = (int) DineroMovimiento::where('volquete_id', $v->id)->sum('monto_ars');
 
         return [
@@ -436,7 +459,7 @@ public function actualizarNota(Request $request, Volquete $volquete)
             'lng' => ['nullable', 'numeric'],
             'direccion' => ['nullable', 'string', 'max:255'],
             'cliente' => ['nullable', 'string', 'max:255'],
-            'esPrivado' => ['nullable','boolean'],
+            'esPrivado' => ['nullable', 'boolean'],
         ]);
 
         $esPrivado = (bool) ($data['esPrivado'] ?? true);

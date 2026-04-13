@@ -60,7 +60,11 @@ export default function Home() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
-  // Close notif on outside click
+  const [precioModalOpen, setPrecioModalOpen] = useState(false);
+  const [precioVolquete, setPrecioVolquete] = useState("");
+  const [cargandoPrecio, setCargandoPrecio] = useState(false);
+  const [guardandoPrecio, setGuardandoPrecio] = useState(false);
+
   useEffect(() => {
     function handleOutside(e: MouseEvent) {
       const target = e.target as Node;
@@ -72,19 +76,21 @@ export default function Home() {
     return () => document.removeEventListener("mousedown", handleOutside);
   }, []);
 
-  // Close stats menu on outside click
   useEffect(() => {
     function handleOutside(e: MouseEvent) {
-      if (statsMenuRef.current && !statsMenuRef.current.contains(e.target as Node)) setStatsMenuOpen(false);
+      if (statsMenuRef.current && !statsMenuRef.current.contains(e.target as Node)) {
+        setStatsMenuOpen(false);
+      }
     }
     if (statsMenuOpen) document.addEventListener("mousedown", handleOutside);
     return () => document.removeEventListener("mousedown", handleOutside);
   }, [statsMenuOpen]);
 
-  // Close user menu on outside click
   useEffect(() => {
     function handleOutside(e: MouseEvent) {
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setUserMenuOpen(false);
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
     }
     if (userMenuOpen) document.addEventListener("mousedown", handleOutside);
     return () => document.removeEventListener("mousedown", handleOutside);
@@ -96,13 +102,16 @@ export default function Home() {
         setVolquetes(data);
         if (vencidosNotifiedRef.current) return;
         vencidosNotifiedRef.current = true;
+
         const hoy = new Date();
         const vencidos = data.filter((v) => {
           if (!v.colocado || v.esPrivado === false || !v.fechaColocacion) return false;
           const dias = Math.floor((hoy.getTime() - new Date(v.fechaColocacion).getTime()) / 86400000);
           return dias >= 7;
         });
+
         if (!vencidos.length) return;
+
         setNotifications(
           vencidos.map((v) => ({
             volquete: v,
@@ -110,7 +119,10 @@ export default function Home() {
           }))
         );
       })
-      .catch((e) => { console.error(e); setVolquetes([]); });
+      .catch((e) => {
+        console.error(e);
+        setVolquetes([]);
+      });
   }, []);
 
   useEffect(() => {
@@ -131,6 +143,7 @@ export default function Home() {
       setMobileTab("map");
       setIsGeocodingAddress(true);
       setAddingCoords({ lat, lng, direccion: undefined });
+
       try {
         const res = await fetch(
           `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
@@ -156,6 +169,7 @@ export default function Home() {
     async (data: { nombre: string; direccion: string; cliente?: string; lat: number; lng: number }) => {
       const nombreNorm = data.nombre.trim().toLowerCase();
       const duplicado = volquetes.some((v) => v.nombre.trim().toLowerCase() === nombreNorm);
+
       if (duplicado) {
         toast({
           title: "⚠️ Nombre en uso",
@@ -164,100 +178,212 @@ export default function Home() {
         });
         return;
       }
+
       const created = await createVolquete(data);
+
       toast({
         title: "🚛 Volquete agregado",
         description: `${created.nombre} fue registrado en ${created.direccion}`,
       });
+
       setVolquetes((prev) => [...prev, created]);
       setAddingCoords(null);
       setSelectedVolquete(created);
       setRightPanel("detail");
       setMobileDetailOpen(true);
       setMobileTab("map");
-    }, [volquetes]
+    },
+    [volquetes]
   );
 
   const handleDeleteVolquete = useCallback(
     async (id: string) => {
       const nombre = volquetes.find((v) => v.id === id)?.nombre ?? "Volquete";
       await deleteVolquete(id);
+
       toast({
         title: "🗑️ Volquete eliminado",
         description: `${nombre} fue eliminado permanentemente`,
         variant: "destructive",
       });
+
       setVolquetes((prev) => prev.filter((v) => v.id !== id));
+
       if (selectedVolquete?.id === id) {
         setSelectedVolquete(null);
         setRightPanel("none");
         setMobileDetailOpen(false);
       }
-    }, [selectedVolquete, volquetes]
+    },
+    [selectedVolquete, volquetes]
   );
 
   const handleColocar = useCallback(
     async (data: { direccion: string; lat: number; lng: number; cliente?: string; nota?: string }) => {
       if (!selectedVolquete) return;
-      const payload = { direccion: data.direccion, lat: data.lat, lng: data.lng, cliente: data.cliente, nota: data.nota };
+
+      const payload = {
+        direccion: data.direccion,
+        lat: data.lat,
+        lng: data.lng,
+        cliente: data.cliente,
+        nota: data.nota,
+      };
+
       const updated =
         selectedVolquete.esPrivado === false
           ? await trasladarVolquete(selectedVolquete.id, {
-              direccion: payload.direccion, lat: payload.lat, lng: payload.lng,
-              motivo: (data as any).motivo, nota: payload.nota,
+              direccion: payload.direccion,
+              lat: payload.lat,
+              lng: payload.lng,
+              motivo: (data as any).motivo,
+              nota: payload.nota,
             })
           : await colocarVolquete(selectedVolquete.id, payload);
+
       toast({
         title: selectedVolquete.esPrivado === false ? "✅ Volquete trasladado" : "✅ Alquiler iniciado",
-        description: selectedVolquete.esPrivado === false
-          ? `${updated.nombre} fue trasladado a ${updated.direccion}`
-          : `${updated.nombre} colocado en ${updated.direccion}`,
+        description:
+          selectedVolquete.esPrivado === false
+            ? `${updated.nombre} fue trasladado a ${updated.direccion}`
+            : `${updated.nombre} colocado en ${updated.direccion}`,
       });
+
       setVolquetes((prev) => prev.map((v) => (v.id === updated.id ? updated : v)));
       setSelectedVolquete(updated);
       setMobileDetailOpen(true);
       setMobileTab("map");
-    }, [selectedVolquete]
+    },
+    [selectedVolquete]
   );
 
   const handleRetirar = useCallback(
     async (data: { nota?: string }) => {
       if (!selectedVolquete) return;
+
       const updated = await retirarVolquete(selectedVolquete.id, data);
+
       toast({
         title: "📦 Alquiler finalizado",
         description: `${updated.nombre} fue retirado y está libre nuevamente`,
       });
+
       setVolquetes((prev) => prev.map((v) => (v.id === updated.id ? updated : v)));
       setSelectedVolquete(updated);
       setMobileDetailOpen(true);
       setMobileTab("map");
-    }, [selectedVolquete]
+    },
+    [selectedVolquete]
   );
 
   const handleReemplazar = useCallback(
     async (data: { nota?: string }) => {
       if (!selectedVolquete) return;
+
       try {
         const updated = await reemplazarVolquete(selectedVolquete.id, {
-          direccion: selectedVolquete.direccion, lat: selectedVolquete.lat,
-          lng: selectedVolquete.lng, nota: data.nota,
+          direccion: selectedVolquete.direccion,
+          lat: selectedVolquete.lat,
+          lng: selectedVolquete.lng,
+          nota: data.nota,
         });
-        toast({ title: "Volquete reemplazado", description: `Reemplazos totales: ${updated.reemplazosTotal ?? 0}` });
+
+        toast({
+          title: "Volquete reemplazado",
+          description: `Reemplazos totales: ${updated.reemplazosTotal ?? 0}`,
+        });
+
         setVolquetes((prev) => prev.map((v) => (v.id === updated.id ? updated : v)));
         setSelectedVolquete(updated);
         setMobileDetailOpen(true);
         setMobileTab("map");
       } catch (err: any) {
-        toast({ title: "No se pudo reemplazar", description: err?.response?.data?.message ?? "Error del servidor", variant: "destructive" });
+        toast({
+          title: "No se pudo reemplazar",
+          description: err?.response?.data?.message ?? "Error del servidor",
+          variant: "destructive",
+        });
       }
-    }, [selectedVolquete]
+    },
+    [selectedVolquete]
   );
 
   const toggleStats = useCallback(() => {
-    if (rightPanel === "stats") { setRightPanel("none"); }
-    else { setRightPanel("stats"); setSelectedVolquete(null); }
+    if (rightPanel === "stats") {
+      setRightPanel("none");
+    } else {
+      setRightPanel("stats");
+      setSelectedVolquete(null);
+    }
   }, [rightPanel]);
+
+  const abrirModalPrecio = useCallback(async () => {
+    setPrecioModalOpen(true);
+    setCargandoPrecio(true);
+
+    try {
+      const res = await fetch("/api/config/precio-volquete");
+      const data = await res.json();
+      setPrecioVolquete(String(data?.valor ?? ""));
+    } catch {
+      toast({
+        title: "Error",
+        description: "No se pudo cargar el precio actual",
+        variant: "destructive",
+      });
+      setPrecioVolquete("");
+    } finally {
+      setCargandoPrecio(false);
+    }
+  }, []);
+
+  const guardarPrecioVolquete = useCallback(async () => {
+    const valor = Number(precioVolquete);
+
+    if (!precioVolquete.trim() || Number.isNaN(valor) || valor < 0) {
+      toast({
+        title: "Precio inválido",
+        description: "Ingresá un valor válido mayor o igual a 0",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setGuardandoPrecio(true);
+
+    try {
+const csrf = document
+  .querySelector('meta[name="csrf-token"]')
+  ?.getAttribute("content");
+
+const res = await fetch("/api/config/precio-volquete", {
+  method: "PUT",
+  headers: {
+    "Content-Type": "application/json",
+    "X-CSRF-TOKEN": csrf ?? "",
+    "X-Requested-With": "XMLHttpRequest",
+    "Accept": "application/json",
+  },
+  body: JSON.stringify({ valor }),
+});
+      if (!res.ok) throw new Error();
+
+      toast({
+        title: "✅ Precio actualizado",
+        description: `Nuevo precio: $${valor.toLocaleString("es-AR")}`,
+      });
+
+      setPrecioModalOpen(false);
+    } catch {
+      toast({
+        title: "Error",
+        description: "No se pudo guardar el precio",
+        variant: "destructive",
+      });
+    } finally {
+      setGuardandoPrecio(false);
+    }
+  }, [precioVolquete]);
 
   const filteredVolquetes = volquetes.filter((v) => {
     const q = searchQuery.trim().toLowerCase();
@@ -266,6 +392,7 @@ export default function Home() {
       v.nombre.toLowerCase().includes(q) ||
       (v.direccion || "").toLowerCase().includes(q) ||
       (v.cliente || "").toLowerCase().includes(q);
+
     let matchStatus = true;
     if (filterStatus === "libres") matchStatus = !v.colocado;
     if (filterStatus === "colocados") matchStatus = v.colocado;
@@ -273,6 +400,7 @@ export default function Home() {
       if (!v.fechaColocacion) matchStatus = false;
       else matchStatus = Math.floor((new Date().getTime() - new Date(v.fechaColocacion).getTime()) / 86400000) > 7;
     }
+
     return matchSearch && matchStatus;
   });
 
@@ -285,6 +413,7 @@ export default function Home() {
   const [isDesktop, setIsDesktop] = useState(
     typeof window !== "undefined" ? window.matchMedia("(min-width: 768px)").matches : true
   );
+
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 768px)");
     setIsDesktop(mq.matches);
@@ -294,7 +423,16 @@ export default function Home() {
   }, []);
 
   return (
-    <div style={{ height: "100dvh", width: "100vw", display: "flex", flexDirection: "column", background: "#0f1117", overflow: "hidden" }}>
+    <div
+      style={{
+        height: "100dvh",
+        width: "100vw",
+        display: "flex",
+        flexDirection: "column",
+        background: "#0f1117",
+        overflow: "hidden",
+      }}
+    >
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap');
         * { box-sizing: border-box; }
@@ -317,174 +455,545 @@ export default function Home() {
         .mob-nav-btn:hover:not(.active) { color: #9ba3c0; }
         .user-btn { display: flex; align-items: center; gap: 8px; padding: 4px 10px 4px 4px; border-radius: 10px; background: #1a1d27; border: 1px solid #2a2d3a; cursor: pointer; transition: all 0.15s; font-family: 'DM Sans', system-ui, sans-serif; }
         .user-btn:hover { background: #1e2232; border-color: #3a3d50; }
-        @keyframes dropIn { from { opacity: 0; transform: translateY(-6px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        @keyframes dropIn {
+          from { opacity: 0; transform: translateY(-8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
         @media (min-width: 768px) { .md-hidden { display: none !important; } .desktop-only { display: flex !important; } }
         @media (max-width: 767px) { .desktop-only { display: none !important; } }
       `}</style>
 
-      {/* ── Header ── */}
-      <header style={{ height: 56, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", background: "#0a0d14", borderBottom: "1px solid #1e2130", zIndex: 99990, position: "relative", fontFamily: "'DM Sans', system-ui, sans-serif", gap: 12 }}>
+<header
+  style={{
+    height: 56,
+    flexShrink: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "0 16px",
+    background: "#0a0d14",
+    borderBottom: "1px solid #1e2130",
+    zIndex: 99990,
+    position: "relative",
+    fontFamily: "'DM Sans', system-ui, sans-serif",
+    gap: 12,
+  }}
+>
+  <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+    <div
+      style={{
+        width: 32,
+        height: 32,
+        borderRadius: 9,
+        background: "linear-gradient(135deg, #4f7cff22, #4f7cff44)",
+        border: "1px solid #4f7cff40",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Truck size={15} color="#4f7cff" />
+    </div>
+    <div>
+      <h1
+        style={{
+          fontSize: 13,
+          fontWeight: 700,
+          color: "#e8ecf8",
+          margin: 0,
+          lineHeight: 1.25,
+          letterSpacing: "-0.01em",
+        }}
+      >
+        TomasGardon<span style={{ color: "#4f7cff" }}>Volquetes</span>
+      </h1>
+      <p
+        style={{
+          fontSize: 10,
+          color: "#3d4260",
+          margin: 0,
+          fontWeight: 500,
+          letterSpacing: "0.04em",
+          textTransform: "uppercase",
+        }}
+      >
+        Sistema de Gestión
+      </p>
+    </div>
+  </div>
 
-        {/* Brand */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 9, background: "linear-gradient(135deg, #4f7cff22, #4f7cff44)", border: "1px solid #4f7cff40", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Truck size={15} color="#4f7cff" />
-          </div>
-          <div>
-            <h1 style={{ fontSize: 13, fontWeight: 700, color: "#e8ecf8", margin: 0, lineHeight: 1.25, letterSpacing: "-0.01em" }}>
-              TomasGardon<span style={{ color: "#4f7cff" }}>Volquetes</span>
-            </h1>
-            <p style={{ fontSize: 10, color: "#3d4260", margin: 0, fontWeight: 500, letterSpacing: "0.04em", textTransform: "uppercase" }}>Sistema de Gestión</p>
-          </div>
-        </div>
+  <div className="desktop-only" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+    <div className="hdr-stat">
+      <span className="hdr-stat-dot" style={{ background: "#4ade80", boxShadow: "0 0 5px #4ade8080" }} />
+      <span className="hdr-stat-val" style={{ color: "#4ade80" }}>{stats.colocados}</span>
+      <span className="hdr-stat-label">alquilados</span>
+    </div>
+    <div className="hdr-stat">
+      <span className="hdr-stat-dot" style={{ background: "#9ba3c0" }} />
+      <span className="hdr-stat-val" style={{ color: "#9ba3c0" }}>{stats.libres}</span>
+      <span className="hdr-stat-label">libres</span>
+    </div>
+    <div className="hdr-sep" />
+    <div className="hdr-stat">
+      <span className="hdr-stat-val" style={{ color: "#e2e5f0" }}>{stats.total}</span>
+      <span className="hdr-stat-label">total</span>
+    </div>
+  </div>
 
-        {/* Quick stats (desktop) */}
-        <div className="desktop-only" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <div className="hdr-stat">
-            <span className="hdr-stat-dot" style={{ background: "#4ade80", boxShadow: "0 0 5px #4ade8080" }} />
-            <span className="hdr-stat-val" style={{ color: "#4ade80" }}>{stats.colocados}</span>
-            <span className="hdr-stat-label">alquilados</span>
-          </div>
-          <div className="hdr-stat">
-            <span className="hdr-stat-dot" style={{ background: "#9ba3c0" }} />
-            <span className="hdr-stat-val" style={{ color: "#9ba3c0" }}>{stats.libres}</span>
-            <span className="hdr-stat-label">libres</span>
-          </div>
-          <div className="hdr-sep" />
-          <div className="hdr-stat">
-            <span className="hdr-stat-val" style={{ color: "#e2e5f0" }}>{stats.total}</span>
-            <span className="hdr-stat-label">total</span>
-          </div>
-        </div>
+  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+    <button
+      className={`hdr-icon-btn desktop-only${rightPanel === "stats" ? " active" : ""}`}
+      onClick={toggleStats}
+      aria-label="Ver estadísticas"
+      style={{ display: "flex" }}
+      title="Estadísticas rápidas"
+    >
+      <BarChart3 size={16} color={rightPanel === "stats" ? "#7aa0ff" : "#6b7290"} />
+    </button>
 
-        {/* Actions */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+    {/* NUEVO: botón precio en mobile */}
+    {isJefe && !isDesktop && (
+      <button
+        className={`hdr-icon-btn${precioModalOpen ? " active" : ""}`}
+        onClick={abrirModalPrecio}
+        aria-label="Cambiar precio"
+        title="Cambiar precio"
+        style={{ display: "flex" }}
+      >
+        <span
+          style={{
+            color: precioModalOpen ? "#7aa0ff" : "#22c55e",
+            fontSize: 15,
+            fontWeight: 800,
+            lineHeight: 1,
+          }}
+        >
+          $
+        </span>
+      </button>
+    )}
 
-          {/* Stats inline panel */}
-          <button className={`hdr-icon-btn desktop-only${rightPanel === "stats" ? " active" : ""}`} onClick={toggleStats} aria-label="Ver estadísticas" style={{ display: "flex" }} title="Estadísticas rápidas">
-            <BarChart3 size={16} color={rightPanel === "stats" ? "#7aa0ff" : "#6b7290"} />
-          </button>
+    {isJefe && (
+      <div ref={statsMenuRef} style={{ position: "relative" }} className="desktop-only">
+        <button
+          className={`hdr-icon-btn${statsMenuOpen ? " active" : ""}`}
+          style={{ display: "flex" }}
+          title="Panel de estadísticas"
+          onClick={() => setStatsMenuOpen((o) => !o)}
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke={statsMenuOpen ? "#7aa0ff" : "#6b7290"}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <rect x="3" y="3" width="7" height="7" />
+            <rect x="14" y="3" width="7" height="7" />
+            <rect x="14" y="14" width="7" height="7" />
+            <rect x="3" y="14" width="7" height="7" />
+          </svg>
+        </button>
 
-          {/* Stats pages dropdown — jefe desktop only */}
-          {isJefe && (
-            <div ref={statsMenuRef} style={{ position: "relative" }} className="desktop-only">
-              <button
-                className={`hdr-icon-btn${statsMenuOpen ? " active" : ""}`}
-                style={{ display: "flex" }}
-                title="Panel de estadísticas"
-                onClick={() => setStatsMenuOpen((o) => !o)}
+        {statsMenuOpen && (
+          <div
+            style={{
+              position: "absolute",
+              top: "calc(100% + 8px)",
+              right: 0,
+              background: "#0f1117",
+              border: "1px solid #2a2d3a",
+              borderRadius: 10,
+              boxShadow: "0 16px 48px rgba(0,0,0,0.7)",
+              zIndex: 9999,
+              overflow: "hidden",
+              minWidth: 190,
+              animation: "dropIn 0.18s cubic-bezier(0.34,1.56,0.64,1)",
+              fontFamily: "'DM Sans', system-ui, sans-serif",
+            }}
+          >
+            <div style={{ padding: "10px 14px 8px", borderBottom: "1px solid #1e2130" }}>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: "#4a4f6a",
+                }}
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={statsMenuOpen ? "#7aa0ff" : "#6b7290"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-                  <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-                </svg>
-              </button>
-              {statsMenuOpen && (
-                <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, background: "#0f1117", border: "1px solid #2a2d3a", borderRadius: 10, boxShadow: "0 16px 48px rgba(0,0,0,0.7)", zIndex: 9999, overflow: "hidden", minWidth: 190, animation: "dropIn 0.18s cubic-bezier(0.34,1.56,0.64,1)", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                  <div style={{ padding: "10px 14px 8px", borderBottom: "1px solid #1e2130" }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#4a4f6a" }}>Panel de estadísticas</span>
-                  </div>
-                  <a href="/stats" style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", color: "#e2e5f0", textDecoration: "none", fontSize: 13, fontWeight: 600, borderBottom: "1px solid #1e2130" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "#1a1d27")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                  >
-                    <div style={{ width: 24, height: 24, borderRadius: 6, background: "#4f7cff18", border: "1px solid #4f7cff30", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <BarChart3 size={13} color="#4f7cff" />
-                    </div>
-                    Privados
-                  </a>
-                  <a href="/stats/municipales" style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", color: "#e2e5f0", textDecoration: "none", fontSize: 13, fontWeight: 600 }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "#1a1d27")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                  >
-                    <div style={{ width: 24, height: 24, borderRadius: 6, background: "#f5c84218", border: "1px solid #f5c84230", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <BarChart3 size={13} color="#f5c842" />
-                    </div>
-                    Municipales
-                  </a>
-                </div>
-              )}
+                Panel de estadísticas
+              </span>
             </div>
-          )}
 
-          {/* Bell */}
-          <button ref={notifBtnRef} className={`hdr-icon-btn${notifOpen ? " active" : ""}`} onClick={() => { setNotifOpen((o) => !o); setNotifRead(true); }} aria-label="Notificaciones" style={{ position: "relative" }}>
-            <Bell size={16} color={notifOpen ? "#7aa0ff" : notifications.length > 0 ? "#ff6b6b" : "#6b7290"} />
-            {notifications.length > 0 && !notifRead && (
-              <span style={{ position: "absolute", top: 4, right: 4, width: 8, height: 8, borderRadius: "50%", background: "#ff6b6b", boxShadow: "0 0 6px #ff6b6b", border: "1.5px solid #0a0d14" }} />
-            )}
-          </button>
+            <a
+              href="/stats"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "11px 14px",
+                color: "#e2e5f0",
+                textDecoration: "none",
+                fontSize: 13,
+                fontWeight: 600,
+                borderBottom: "1px solid #1e2130",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#1a1d27")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            >
+              <div
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 6,
+                  background: "#4f7cff18",
+                  border: "1px solid #4f7cff30",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <BarChart3 size={13} color="#4f7cff" />
+              </div>
+              Privados
+            </a>
 
-          {/* Agregar — solo jefe */}
-          {isJefe && (
-            <button className={`hdr-add-btn ${isAddingMode ? "cancel" : "default"}`} onClick={() => { setIsAddingMode(!isAddingMode); if (isAddingMode) setAddingCoords(null); else setMobileTab("map"); }}>
-              {isAddingMode ? <X size={14} /> : <Plus size={14} />}
-              <span className="desktop-only" style={{ display: "inline" }}>{isAddingMode ? "Cancelar" : "Agregar"}</span>
+            <a
+              href="/stats/municipales"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "11px 14px",
+                color: "#e2e5f0",
+                textDecoration: "none",
+                fontSize: 13,
+                fontWeight: 600,
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#1a1d27")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            >
+              <div
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 6,
+                  background: "#f5c84218",
+                  border: "1px solid #f5c84230",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <BarChart3 size={13} color="#f5c842" />
+              </div>
+              Municipales
+            </a>
+
+            <button
+              onClick={() => {
+                setStatsMenuOpen(false);
+                abrirModalPrecio();
+              }}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "11px 14px",
+                background: "transparent",
+                border: "none",
+                borderTop: "1px solid #1e2130",
+                cursor: "pointer",
+                fontSize: 13,
+                fontWeight: 600,
+                color: "#e2e5f0",
+                fontFamily: "'DM Sans', system-ui, sans-serif",
+                textAlign: "left",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#1a1d27")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            >
+              <div
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 6,
+                  background: "#22c55e18",
+                  border: "1px solid #22c55e30",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#22c55e",
+                  fontSize: 13,
+                  fontWeight: 700,
+                }}
+              >
+                $
+              </div>
+              Cambiar precio
             </button>
-          )}
+          </div>
+        )}
+      </div>
+    )}
 
-          {/* User menu */}
-          <div ref={userMenuRef} style={{ position: "relative", flexShrink: 0 }}>
-            <button className="user-btn" onClick={() => setUserMenuOpen((o) => !o)}>
-              <div style={{ width: 26, height: 26, borderRadius: "50%", background: "linear-gradient(135deg, #4f7cff, #7aa0ff)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#fff", letterSpacing: "0.02em", flexShrink: 0 }}>
+    <button
+      ref={notifBtnRef}
+      className={`hdr-icon-btn${notifOpen ? " active" : ""}`}
+      onClick={() => {
+        setNotifOpen((o) => !o);
+        setNotifRead(true);
+      }}
+      aria-label="Notificaciones"
+      style={{ position: "relative" }}
+    >
+      <Bell size={16} color={notifOpen ? "#7aa0ff" : notifications.length > 0 ? "#ff6b6b" : "#6b7290"} />
+      {notifications.length > 0 && !notifRead && (
+        <span
+          style={{
+            position: "absolute",
+            top: 4,
+            right: 4,
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            background: "#ff6b6b",
+            boxShadow: "0 0 6px #ff6b6b",
+            border: "1.5px solid #0a0d14",
+          }}
+        />
+      )}
+    </button>
+
+    {isJefe && (
+      <button
+        className={`hdr-add-btn ${isAddingMode ? "cancel" : "default"}`}
+        onClick={() => {
+          setIsAddingMode(!isAddingMode);
+          if (isAddingMode) setAddingCoords(null);
+          else setMobileTab("map");
+        }}
+      >
+        {isAddingMode ? <X size={14} /> : <Plus size={14} />}
+        <span className="desktop-only" style={{ display: "inline" }}>
+          {isAddingMode ? "Cancelar" : "Agregar"}
+        </span>
+      </button>
+    )}
+
+    <div ref={userMenuRef} style={{ position: "relative", flexShrink: 0 }}>
+      <button className="user-btn" onClick={() => setUserMenuOpen((o) => !o)}>
+        <div
+          style={{
+            width: 26,
+            height: 26,
+            borderRadius: "50%",
+            background: "linear-gradient(135deg, #4f7cff, #7aa0ff)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 10,
+            fontWeight: 800,
+            color: "#fff",
+            letterSpacing: "0.02em",
+            flexShrink: 0,
+          }}
+        >
+          {initials}
+        </div>
+
+        <div className="desktop-only" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 0 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#c8cedf", lineHeight: 1.2 }}>
+            {user?.name ?? "Usuario"}
+          </span>
+          <span
+            style={{
+              fontSize: 10,
+              color: "#3d4870",
+              fontWeight: 500,
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
+              lineHeight: 1.2,
+            }}
+          >
+            {user?.role ?? ""}
+          </span>
+        </div>
+
+        <ChevronDown size={12} color="#3d4870" style={{ marginLeft: 2 }} className="desktop-only" />
+      </button>
+
+      {userMenuOpen && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 8px)",
+            right: 0,
+            minWidth: 210,
+            background: "#0f1117",
+            border: "1px solid #2a2d3a",
+            borderRadius: 12,
+            boxShadow: "0 16px 48px rgba(0,0,0,0.7)",
+            zIndex: 9999,
+            overflow: "hidden",
+            animation: "dropIn 0.18s cubic-bezier(0.34,1.56,0.64,1)",
+            fontFamily: "'DM Sans', system-ui, sans-serif",
+          }}
+        >
+          <div style={{ padding: "14px 14px 12px", borderBottom: "1px solid #1e2130" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: "50%",
+                  background: "linear-gradient(135deg, #4f7cff, #7aa0ff)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 14,
+                  fontWeight: 800,
+                  color: "#fff",
+                  flexShrink: 0,
+                }}
+              >
                 {initials}
               </div>
-              <div className="desktop-only" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 0 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "#c8cedf", lineHeight: 1.2 }}>{user?.name ?? "Usuario"}</span>
-                <span style={{ fontSize: 10, color: "#3d4870", fontWeight: 500, letterSpacing: "0.04em", textTransform: "uppercase", lineHeight: 1.2 }}>{user?.role ?? ""}</span>
-              </div>
-              <ChevronDown size={12} color="#3d4870" style={{ marginLeft: 2 }} className="desktop-only" />
-            </button>
-
-            {userMenuOpen && (
-              <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, minWidth: 210, background: "#0f1117", border: "1px solid #2a2d3a", borderRadius: 12, boxShadow: "0 16px 48px rgba(0,0,0,0.7)", zIndex: 9999, overflow: "hidden", animation: "dropIn 0.18s cubic-bezier(0.34,1.56,0.64,1)", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                {/* User info */}
-                <div style={{ padding: "14px 14px 12px", borderBottom: "1px solid #1e2130" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 38, height: 38, borderRadius: "50%", background: "linear-gradient(135deg, #4f7cff, #7aa0ff)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
-                      {initials}
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e5f0" }}>{user?.name ?? "Usuario"}</div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}>
-                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#4ade80", boxShadow: "0 0 5px #4ade8080", display: "inline-block" }} />
-                        <span style={{ fontSize: 10, color: "#4a5270", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{user?.role ?? ""} · activo</span>
-                      </div>
-                    </div>
-                  </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e5f0" }}>
+                  {user?.name ?? "Usuario"}
                 </div>
-                {/* Logout */}
-                <button
-                  onClick={() => { setUserMenuOpen(false); router.post("/logout"); }}
-                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", background: "transparent", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#ff6b6b", fontFamily: "'DM Sans', system-ui, sans-serif", textAlign: "left" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "#ff4f4f12")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                >
-                  <LogOut size={14} />
-                  Cerrar sesión
-                </button>
+                <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}>
+                  <span
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      background: "#4ade80",
+                      boxShadow: "0 0 5px #4ade8080",
+                      display: "inline-block",
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: 10,
+                      color: "#4a5270",
+                      fontWeight: 600,
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {user?.role ?? ""} · activo
+                  </span>
+                </div>
               </div>
-            )}
+            </div>
           </div>
 
+          <button
+            onClick={() => {
+              setUserMenuOpen(false);
+              router.post("/logout");
+            }}
+            style={{
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "11px 14px",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#ff6b6b",
+              fontFamily: "'DM Sans', system-ui, sans-serif",
+              textAlign: "left",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "#ff4f4f12")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          >
+            <LogOut size={14} />
+            Cerrar sesión
+          </button>
         </div>
-      </header>
+      )}
+    </div>
+  </div>
+</header>
 
-      {/* ── Main content ── */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative" }}>
-        <aside className="desktop-only" style={{ width: 300, flexShrink: 0, borderRight: "1px solid #1e2130", background: "#0c0e16", display: "flex", flexDirection: "column", position: "relative", zIndex: 5 }}>
-          <VolqueteList volquetes={filteredVolquetes} selectedId={selectedVolquete?.id ?? null} onSelect={handleSelectVolquete} filterStatus={filterStatus} onFilterChange={setFilterStatus} searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+        <aside
+          className="desktop-only"
+          style={{
+            width: 300,
+            flexShrink: 0,
+            borderRight: "1px solid #1e2130",
+            background: "#0c0e16",
+            display: "flex",
+            flexDirection: "column",
+            position: "relative",
+            zIndex: 5,
+          }}
+        >
+          <VolqueteList
+            volquetes={filteredVolquetes}
+            selectedId={selectedVolquete?.id ?? null}
+            onSelect={handleSelectVolquete}
+            filterStatus={filterStatus}
+            onFilterChange={setFilterStatus}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+          />
         </aside>
 
-        {/* ── Paneles móviles — usan bottom con safe area ── */}
         {!isDesktop && mobileTab === "list" && (
-          <div style={{ position: "fixed", top: 56, left: 0, right: 0, bottom: "calc(56px + env(safe-area-inset-bottom))", zIndex: 9998, background: "#0f1117f5", backdropFilter: "blur(6px)" }}>
-            <VolqueteList volquetes={filteredVolquetes} selectedId={selectedVolquete?.id ?? null} onSelect={(v) => { handleSelectVolquete(v); setMobileTab("map"); }} filterStatus={filterStatus} onFilterChange={setFilterStatus} searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+          <div
+            style={{
+              position: "fixed",
+              top: 56,
+              left: 0,
+              right: 0,
+              bottom: "calc(56px + env(safe-area-inset-bottom))",
+              zIndex: 9998,
+              background: "#0f1117f5",
+              backdropFilter: "blur(6px)",
+            }}
+          >
+            <VolqueteList
+              volquetes={filteredVolquetes}
+              selectedId={selectedVolquete?.id ?? null}
+              onSelect={(v) => {
+                handleSelectVolquete(v);
+                setMobileTab("map");
+              }}
+              filterStatus={filterStatus}
+              onFilterChange={setFilterStatus}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+            />
           </div>
         )}
 
         {!isDesktop && mobileTab === "stats" && (
-          <div style={{ position: "fixed", top: 56, left: 0, right: 0, bottom: "calc(56px + env(safe-area-inset-bottom))", zIndex: 9998, background: "#0f1117f5", backdropFilter: "blur(6px)", overflow: "hidden" }}>
+          <div
+            style={{
+              position: "fixed",
+              top: 56,
+              left: 0,
+              right: 0,
+              bottom: "calc(56px + env(safe-area-inset-bottom))",
+              zIndex: 9998,
+              background: "#0f1117f5",
+              backdropFilter: "blur(6px)",
+              overflow: "hidden",
+            }}
+          >
             <StatsPanel volquetes={volquetes} onClose={() => setMobileTab("map")} />
           </div>
         )}
@@ -503,26 +1012,73 @@ export default function Home() {
         </main>
 
         {rightPanel !== "none" && (
-          <aside className="desktop-only" style={{ width: 340, flexShrink: 0, borderLeft: "1px solid #1e2130", background: "#0c0e16", display: "flex", flexDirection: "column", position: "relative", zIndex: 5 }}>
+          <aside
+            className="desktop-only"
+            style={{
+              width: 340,
+              flexShrink: 0,
+              borderLeft: "1px solid #1e2130",
+              background: "#0c0e16",
+              display: "flex",
+              flexDirection: "column",
+              position: "relative",
+              zIndex: 5,
+            }}
+          >
             {rightPanel === "detail" && selectedVolquete && (
-              <VolqueteSidebar volquete={selectedVolquete} onClose={() => setRightPanel("none")} onDelete={() => handleDeleteVolquete(selectedVolquete.id)} onColocar={handleColocar} onRetirar={handleRetirar} onReemplazar={handleReemplazar} />
+              <VolqueteSidebar
+                volquete={selectedVolquete}
+                onClose={() => setRightPanel("none")}
+                onDelete={() => handleDeleteVolquete(selectedVolquete.id)}
+                onColocar={handleColocar}
+                onRetirar={handleRetirar}
+                onReemplazar={handleReemplazar}
+              />
             )}
             {rightPanel === "stats" && <StatsPanel volquetes={volquetes} onClose={() => setRightPanel("none")} />}
           </aside>
         )}
 
         {!isDesktop && mobileDetailOpen && selectedVolquete && (
-          <div style={{ position: "fixed", top: 56, left: 0, right: 0, bottom: "calc(56px + env(safe-area-inset-bottom))", zIndex: 9999, background: "#0f1117f5", backdropFilter: "blur(6px)", overflow: "hidden" }}>
-            <VolqueteSidebar volquete={selectedVolquete} onClose={() => setMobileDetailOpen(false)} onDelete={() => handleDeleteVolquete(selectedVolquete.id)} onColocar={handleColocar} onRetirar={handleRetirar} onReemplazar={handleReemplazar} />
+          <div
+            style={{
+              position: "fixed",
+              top: 56,
+              left: 0,
+              right: 0,
+              bottom: "calc(56px + env(safe-area-inset-bottom))",
+              zIndex: 9999,
+              background: "#0f1117f5",
+              backdropFilter: "blur(6px)",
+              overflow: "hidden",
+            }}
+          >
+            <VolqueteSidebar
+              volquete={selectedVolquete}
+              onClose={() => setMobileDetailOpen(false)}
+              onDelete={() => handleDeleteVolquete(selectedVolquete.id)}
+              onColocar={handleColocar}
+              onRetirar={handleRetirar}
+              onReemplazar={handleReemplazar}
+            />
           </div>
         )}
 
         {addingCoords && (
-          <AddVolqueteModal lat={addingCoords.lat} lng={addingCoords.lng} direccionInicial={addingCoords.direccion} isLoadingDireccion={isGeocodingAddress} onConfirm={handleAddVolquete} onCancel={() => { setAddingCoords(null); setIsGeocodingAddress(false); }} />
+          <AddVolqueteModal
+            lat={addingCoords.lat}
+            lng={addingCoords.lng}
+            direccionInicial={addingCoords.direccion}
+            isLoadingDireccion={isGeocodingAddress}
+            onConfirm={handleAddVolquete}
+            onCancel={() => {
+              setAddingCoords(null);
+              setIsGeocodingAddress(false);
+            }}
+          />
         )}
       </div>
 
-      {/* ── Mobile bottom nav — con safe area ── */}
       <div
         className="md-hidden"
         style={{
@@ -541,70 +1097,376 @@ export default function Home() {
         {(["map", "list", "stats"] as MobileTab[]).map((tab) => {
           const labels: Record<MobileTab, string> = { map: "Mapa", list: "Lista", stats: "Stats" };
           const icons: Record<MobileTab, React.ReactNode> = {
-            map: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>,
+            map: (
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
+                <line x1="9" y1="3" x2="9" y2="18" />
+                <line x1="15" y1="6" x2="15" y2="21" />
+              </svg>
+            ),
             list: <List size={16} />,
             stats: <BarChart3 size={16} />,
           };
+
           return (
             <button key={tab} className={`mob-nav-btn${mobileTab === tab ? " active" : ""}`} onClick={() => setMobileTab(tab)}>
-              {icons[tab]}{labels[tab]}
+              {icons[tab]}
+              {labels[tab]}
             </button>
           );
         })}
       </div>
 
-      {/* Notification dropdown */}
       {notifOpen && (
-        <div ref={notifPanelRef} style={{
-          position: "fixed",
-          top: (() => { const r = notifBtnRef.current?.getBoundingClientRect(); return r ? r.bottom + 8 : 64; })(),
-          ...(window.innerWidth < 640
-            ? { left: "50%", transform: "translateX(-50%)", right: "auto" }
-            : { right: (() => { const r = notifBtnRef.current?.getBoundingClientRect(); return r ? window.innerWidth - r.right : 8; })() }
-          ),
-          width: Math.min(300, window.innerWidth - 24),
-          background: "#0f1117", border: "1px solid #2a2d3a", borderRadius: 12,
-          boxShadow: "0 16px 48px rgba(0,0,0,0.85)", zIndex: 99999, overflow: "hidden", isolation: "isolate",
-          animation: "dropIn 0.18s cubic-bezier(0.34,1.56,0.64,1)",
-          fontFamily: "'DM Sans', system-ui, sans-serif",
-        }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px 10px", borderBottom: "1px solid #1e2130" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <Bell size={13} color="#ff6b6b" />
-              <span style={{ fontSize: 13, fontWeight: 700, color: "#e2e5f0" }}>Notificaciones</span>
-            </div>
-            {notifications.length > 0 && (
-              <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 5, background: "#ff6b6b18", border: "1px solid #ff6b6b30", color: "#ff6b6b" }}>
-                {notifications.length} vencido{notifications.length > 1 ? "s" : ""}
-              </span>
-            )}
-          </div>
-          <div style={{ maxHeight: 320, overflowY: "auto", padding: "6px 0" }}>
-            {notifications.length === 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "24px 16px" }}>
-                <Bell size={22} color="#2a2d3a" />
-                <span style={{ fontSize: 12, color: "#3d4260" }}>Sin notificaciones</span>
+        <div
+          style={{
+            position: "fixed",
+            top: (() => {
+              const r = notifBtnRef.current?.getBoundingClientRect();
+              return r ? r.bottom + 8 : 64;
+            })(),
+            left: window.innerWidth < 640 ? "50%" : "auto",
+            right:
+              window.innerWidth < 640
+                ? "auto"
+                : (() => {
+                    const r = notifBtnRef.current?.getBoundingClientRect();
+                    return r ? window.innerWidth - r.right : 8;
+                  })(),
+            transform: window.innerWidth < 640 ? "translateX(-50%)" : "none",
+            zIndex: 99999,
+          }}
+        >
+          <div
+            ref={notifPanelRef}
+            style={{
+              width: Math.min(300, window.innerWidth - 24),
+              background: "#0f1117",
+              border: "1px solid #2a2d3a",
+              borderRadius: 12,
+              boxShadow: "0 16px 48px rgba(0,0,0,0.85)",
+              overflow: "hidden",
+              isolation: "isolate",
+              animation: "dropIn 0.18s cubic-bezier(0.34,1.56,0.64,1)",
+              fontFamily: "'DM Sans', system-ui, sans-serif",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "12px 14px 10px",
+                borderBottom: "1px solid #1e2130",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                <Bell size={13} color="#ff6b6b" />
+                <span style={{ fontSize: 13, fontWeight: 700, color: "#e2e5f0" }}>Notificaciones</span>
               </div>
-            ) : (
-              notifications.map(({ volquete: v, dias }) => (
-                <button key={v.id} onClick={() => { handleSelectVolquete(v); setNotifOpen(false); }}
-                  style={{ width: "100%", textAlign: "left", padding: "10px 14px", background: "transparent", border: "none", borderBottom: "1px solid #1a1d27", cursor: "pointer", display: "flex", gap: 10, alignItems: "flex-start", fontFamily: "'DM Sans', system-ui, sans-serif" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "#1a1d27")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              {notifications.length > 0 && (
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    padding: "2px 7px",
+                    borderRadius: 5,
+                    background: "#ff6b6b18",
+                    border: "1px solid #ff6b6b30",
+                    color: "#ff6b6b",
+                  }}
                 >
-                  <div style={{ width: 32, height: 32, borderRadius: 8, flexShrink: 0, background: "#ff6b6b15", border: "1px solid #ff6b6b30", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>🚛</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: "#e2e5f0" }}>{v.nombre}</span>
-                      <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: "#ff6b6b18", border: "1px solid #ff6b6b30", color: "#ff6b6b", whiteSpace: "nowrap" }}>{dias}d vencido</span>
+                  {notifications.length} vencido{notifications.length > 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+
+            <div style={{ maxHeight: 320, overflowY: "auto", padding: "6px 0" }}>
+              {notifications.length === 0 ? (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "24px 16px" }}>
+                  <Bell size={22} color="#2a2d3a" />
+                  <span style={{ fontSize: 12, color: "#3d4260" }}>Sin notificaciones</span>
+                </div>
+              ) : (
+                notifications.map(({ volquete: v, dias }) => (
+                  <button
+                    key={v.id}
+                    onClick={() => {
+                      handleSelectVolquete(v);
+                      setNotifOpen(false);
+                    }}
+                    style={{
+                      width: "100%",
+                      textAlign: "left",
+                      padding: "10px 14px",
+                      background: "transparent",
+                      border: "none",
+                      borderBottom: "1px solid #1a1d27",
+                      cursor: "pointer",
+                      display: "flex",
+                      gap: 10,
+                      alignItems: "flex-start",
+                      fontFamily: "'DM Sans', system-ui, sans-serif",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "#1a1d27")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <div
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 8,
+                        flexShrink: 0,
+                        background: "#ff6b6b15",
+                        border: "1px solid #ff6b6b30",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 14,
+                      }}
+                    >
+                      🚛
                     </div>
-                    {v.direccion && <div style={{ fontSize: 11, color: "#4a4f6a", display: "flex", gap: 4 }}><span>📍</span><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.direccion}</span></div>}
-                    {v.cliente && <div style={{ fontSize: 11, color: "#4a4f6a", display: "flex", gap: 4, marginTop: 1 }}><span>👤</span><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.cliente}</span></div>}
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: "#e2e5f0" }}>{v.nombre}</span>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            padding: "1px 6px",
+                            borderRadius: 4,
+                            background: "#ff6b6b18",
+                            border: "1px solid #ff6b6b30",
+                            color: "#ff6b6b",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {dias}d vencido
+                        </span>
+                      </div>
+
+                      {v.direccion && (
+                        <div style={{ fontSize: 11, color: "#4a4f6a", display: "flex", gap: 4 }}>
+                          <span>📍</span>
+                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {v.direccion}
+                          </span>
+                        </div>
+                      )}
+
+                      {v.cliente && (
+                        <div style={{ fontSize: 11, color: "#4a4f6a", display: "flex", gap: 4, marginTop: 1 }}>
+                          <span>👤</span>
+                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {v.cliente}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <span style={{ color: "#2a2d3a", fontSize: 14, marginTop: 6, flexShrink: 0 }}>→</span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {precioModalOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.6)",
+            backdropFilter: "blur(4px)",
+            zIndex: 100000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+          }}
+          onClick={() => !guardandoPrecio && setPrecioModalOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: 420,
+              background: "#0f1117",
+              border: "1px solid #2a2d3a",
+              borderRadius: 14,
+              boxShadow: "0 24px 64px rgba(0,0,0,0.75)",
+              overflow: "hidden",
+              fontFamily: "'DM Sans', system-ui, sans-serif",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "14px 16px",
+                borderBottom: "1px solid #1e2130",
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#e8ecf8" }}>
+                  Cambiar precio
+                </div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "#4a4f6a",
+                    marginTop: 2,
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Precio global del servicio
+                </div>
+              </div>
+
+              <button
+                onClick={() => !guardandoPrecio && setPrecioModalOpen(false)}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  background: "#1a1d27",
+                  border: "1px solid #2a2d3a",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <X size={15} color="#6b7290" />
+              </button>
+            </div>
+
+            <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
+              <div
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  background: "#1a1d27",
+                  border: "1px solid #2a2d3a",
+                  fontSize: 12,
+                  color: "#7a829c",
+                  lineHeight: 1.5,
+                }}
+              >
+                Este valor se usará para futuras colocaciones y reemplazos.
+              </div>
+
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: 6,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    color: "#4a4f6a",
+                  }}
+                >
+                  Precio
+                </label>
+
+                {cargandoPrecio ? (
+                  <div
+                    style={{
+                      width: "100%",
+                      background: "#151922",
+                      border: "1px solid #262b37",
+                      borderRadius: 8,
+                      padding: "12px 14px",
+                      fontSize: 13,
+                      color: "#4a4f6a",
+                    }}
+                  >
+                    Cargando precio...
                   </div>
-                  <span style={{ color: "#2a2d3a", fontSize: 14, marginTop: 6, flexShrink: 0 }}>→</span>
-                </button>
-              ))
-            )}
+                ) : (
+                  <input
+                    type="number"
+                    min={0}
+                    value={precioVolquete}
+                    onChange={(e) => setPrecioVolquete(e.target.value)}
+                    placeholder="Ej: 52000"
+                    style={{
+                      width: "100%",
+                      background: "#1a1d27",
+                      border: "1px solid #2a2d3a",
+                      borderRadius: 8,
+                      padding: "12px 14px",
+                      fontSize: 14,
+                      color: "#e2e5f0",
+                      fontFamily: "'DM Mono', monospace",
+                      outline: "none",
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                padding: 16,
+                borderTop: "1px solid #1e2130",
+              }}
+            >
+              <button
+                onClick={() => setPrecioModalOpen(false)}
+                disabled={guardandoPrecio}
+                style={{
+                  flex: 1,
+                  padding: "11px 14px",
+                  borderRadius: 8,
+                  background: "#1a1d27",
+                  border: "1px solid #2a2d3a",
+                  color: "#9ba3c0",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: guardandoPrecio ? "not-allowed" : "pointer",
+                }}
+              >
+                Cancelar
+              </button>
+
+              <button
+                onClick={guardarPrecioVolquete}
+                disabled={guardandoPrecio || cargandoPrecio}
+                style={{
+                  flex: 1,
+                  padding: "11px 14px",
+                  borderRadius: 8,
+                  background: guardandoPrecio ? "#2a3a70" : "#4f7cff",
+                  border: "none",
+                  color: "#fff",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: guardandoPrecio || cargandoPrecio ? "not-allowed" : "pointer",
+                }}
+              >
+                {guardandoPrecio ? "Guardando..." : "Guardar precio"}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -21,6 +21,113 @@ const DARK = { bg: "#0d0f11", surface: "#13171b", surface2: "#1a1f25", border: "
 function formatARS(n: number) { return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(n); }
 function formatDate(d: string | null | undefined) { if (!d) return "-"; const date = new Date(d); if (Number.isNaN(date.getTime())) return d; return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium" }).format(date); }
 
+const PRINT_STYLES = `
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap');
+a.nav-btn { transition: all 0.15s; }
+a.nav-btn:hover { opacity: 0.8; }
+
+@media print {
+  /* ── Ocultar controles de UI ── */
+  .no-print { display: none !important; }
+
+  /* ── Página en horizontal, márgenes cómodos ── */
+  @page {
+    size: A4 landscape;
+    margin: 1.2cm 1.5cm;
+  }
+
+  /* ── Reset de colores: fondo blanco, texto oscuro ── */
+  html, body {
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  /* Contenedor principal */
+  .print-root {
+    background: #fff !important;
+    color: #111 !important;
+    font-family: 'DM Sans', system-ui, sans-serif !important;
+  }
+
+  /* Cards y superficies */
+  .print-surface {
+    background: #f8f9fa !important;
+    border-color: #dee2e6 !important;
+    color: #111 !important;
+    break-inside: avoid;
+  }
+
+  /* Textos apagados */
+  .print-muted {
+    color: #6c757d !important;
+  }
+
+  /* ── Tipografía mono ── */
+  .print-mono {
+    font-family: 'DM Mono', monospace !important;
+    color: #111 !important;
+  }
+
+  /* ── Tablas ── */
+  table {
+    page-break-inside: auto;
+    border-collapse: collapse !important;
+    width: 100% !important;
+    font-size: 10px !important;
+  }
+  thead { display: table-header-group; }
+  tr {
+    page-break-inside: avoid;
+    border-top: 1px solid #dee2e6 !important;
+  }
+  th, td {
+    color: #111 !important;
+    border-color: #dee2e6 !important;
+  }
+
+  /* ── Grillas: forzar 1 columna en tablas secundarias ── */
+  .print-grid-2col {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* ── Charts ApexCharts ── */
+  .apexcharts-canvas { background: transparent !important; }
+  .apexcharts-canvas svg { background: transparent !important; }
+  .apexcharts-text, .apexcharts-legend-text {
+    fill: #333 !important;
+    color: #333 !important;
+  }
+  .apexcharts-gridline { stroke: #dee2e6 !important; }
+  .apexcharts-tooltip { display: none !important; }
+
+  /* ── Badges de tipo ── */
+  .print-badge {
+    background: #e9ecef !important;
+    border-color: #ced4da !important;
+    color: #333 !important;
+  }
+
+  /* ── Separador de sección ── */
+  .print-section-divider {
+    color: #6c757d !important;
+  }
+  .print-section-divider span[style*="background"] {
+    background: #dee2e6 !important;
+  }
+
+  /* Título del reporte (solo visible al imprimir) */
+  .print-only { display: block !important; }
+
+  /* Evitar cortes en bloques grandes */
+  .print-no-break { break-inside: avoid; }
+}
+
+/* Ocultar en pantalla */
+.print-only { display: none; }
+`;
+
 export default function StatsIndex() {
   const [days, setDays] = useState<number>(30);
   const [loading, setLoading] = useState<boolean>(true);
@@ -58,25 +165,34 @@ export default function StatsIndex() {
   });
   const totalIngresos = useMemo(() => (data?.charts.ingresos.values ?? []).reduce((a, v) => a + (Number(v) || 0), 0), [data]);
 
+  function handlePrint() {
+    window.print();
+  }
+
   return (
-    <div style={{ minHeight: "100vh", background: DARK.bg, color: DARK.text, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap'); a.nav-btn { transition: all 0.15s; } a.nav-btn:hover { opacity: 0.8; }`}</style>
+    <div className="print-root" style={{ minHeight: "100vh", background: DARK.bg, color: DARK.text, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      <style>{PRINT_STYLES}</style>
       <Head title="Estadísticas Privados" />
 
-      {/* Header */}
-      <div style={{ borderBottom: `1px solid ${DARK.border}`, background: DARK.surface, padding: "20px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+      {/* Encabezado solo visible al imprimir */}
+      <div className="print-only" style={{ marginBottom: 16, paddingBottom: 12, borderBottom: "2px solid #dee2e6" }}>
+        <div style={{ fontSize: 20, fontWeight: 700 }}>Estadísticas Financieras · Privados</div>
+        <div style={{ fontSize: 12, color: "#6c757d", marginTop: 4 }}>
+          Período: últimos {days} días · Impreso el {new Intl.DateTimeFormat("es-AR", { dateStyle: "long", timeStyle: "short" }).format(new Date())}
+        </div>
+      </div>
+
+      {/* Header — oculto al imprimir */}
+      <div className="no-print" style={{ borderBottom: `1px solid ${DARK.border}`, background: DARK.surface, padding: "20px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-            {/* Volver */}
             <a href="/dashboard" className="nav-btn" style={{ display: "flex", alignItems: "center", gap: 6, color: DARK.muted, fontSize: 12, textDecoration: "none", background: DARK.surface2, border: `1px solid ${DARK.border}`, padding: "6px 12px", borderRadius: 7, fontWeight: 500 }}>
               ← App
             </a>
             <span style={{ color: DARK.border, fontSize: 16 }}>|</span>
-            {/* Privados — activo */}
             <a href="/stats" className="nav-btn" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, textDecoration: "none", padding: "6px 12px", borderRadius: 7, fontWeight: 700, background: "#4f7cff18", border: "1px solid #4f7cff40", color: DARK.accent }}>
               Privados
             </a>
-            {/* Municipales — inactivo */}
             <a href="/stats/municipales" className="nav-btn" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, textDecoration: "none", padding: "6px 12px", borderRadius: 7, fontWeight: 600, background: DARK.surface2, border: `1px solid ${DARK.border}`, color: DARK.muted }}>
               Municipales →
             </a>
@@ -89,31 +205,43 @@ export default function StatsIndex() {
             <option value={7}>7 días</option><option value={30}>30 días</option><option value={90}>90 días</option>
           </select>
           <button onClick={() => void load()} style={{ background: DARK.accent, border: "none", color: "#fff", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Actualizar</button>
+          {/* ── Botón imprimir PDF ── */}
+          <button
+            onClick={handlePrint}
+            style={{ background: DARK.surface2, border: `1px solid ${DARK.border}`, color: DARK.text, borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+            </svg>
+            Imprimir PDF
+          </button>
         </div>
       </div>
 
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 32px", display: "flex", flexDirection: "column", gap: 24 }}>
         {error && <div style={{ background: "#ff4f4f15", border: "1px solid #ff4f4f40", borderRadius: 10, padding: "14px 18px", color: "#ff6b6b", fontSize: 13 }}>Error: {error}</div>}
-        {loading && <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 12 }}>{Array.from({ length: 6 }).map((_, i) => <div key={i} style={{ height: 80, borderRadius: 10, background: DARK.surface, border: `1px solid ${DARK.border}`, opacity: 0.5 }} />)}</div>}
+        {loading && <div className="no-print" style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 12 }}>{Array.from({ length: 6 }).map((_, i) => <div key={i} style={{ height: 80, borderRadius: 10, background: DARK.surface, border: `1px solid ${DARK.border}`, opacity: 0.5 }} />)}</div>}
 
         {!loading && data && (
           <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
+            {/* ── Cards principales ── */}
+            <div className="print-no-break" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
               {data.cards.map((c, i) => {
                 const isMoney = c.label.toLowerCase().includes("ingresos") || c.label.toLowerCase().includes("ars");
                 return (
-                  <div key={i} style={{ background: DARK.surface, border: `1px solid ${DARK.border}`, borderRadius: 10, padding: "16px 18px" }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: DARK.muted, marginBottom: 8 }}>{c.label}</div>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: isMoney ? 16 : 28, fontWeight: 800, lineHeight: 1 }}>{isMoney ? formatARS(c.value) : c.value.toLocaleString("es-AR")}</div>
-                    {isMoney && <div style={{ fontSize: 10, color: DARK.muted, marginTop: 4 }}>Total: {formatARS(totalIngresos)}</div>}
+                  <div key={i} className="print-surface" style={{ background: DARK.surface, border: `1px solid ${DARK.border}`, borderRadius: 10, padding: "16px 18px" }}>
+                    <div className="print-muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: DARK.muted, marginBottom: 8 }}>{c.label}</div>
+                    <div className="print-mono" style={{ fontFamily: "'DM Mono', monospace", fontSize: isMoney ? 16 : 28, fontWeight: 800, lineHeight: 1 }}>{isMoney ? formatARS(c.value) : c.value.toLocaleString("es-AR")}</div>
+                    {isMoney && <div className="print-muted" style={{ fontSize: 10, color: DARK.muted, marginTop: 4 }}>Total: {formatARS(totalIngresos)}</div>}
                   </div>
                 );
               })}
             </div>
 
+            {/* ── Stats alquileres cerrados ── */}
             {data.cerradosStats && (
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: DARK.muted, marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
+              <div className="print-no-break">
+                <div className="print-section-divider" style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: DARK.muted, marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
                   Alquileres cerrados en el período <span style={{ flex: 1, height: 1, background: DARK.border, display: "inline-block" }} />
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
@@ -123,47 +251,49 @@ export default function StatsIndex() {
                     { label: "Días promedio", value: `${data.cerradosStats.dias_promedio}d` },
                     { label: "Días máximo", value: `${data.cerradosStats.dias_max}d` },
                   ].map((c, i) => (
-                    <div key={i} style={{ background: DARK.surface, border: `1px solid ${DARK.border}`, borderTop: `2px solid ${DARK.green}`, borderRadius: 10, padding: "16px 18px" }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: DARK.muted, marginBottom: 8 }}>{c.label}</div>
-                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 22, fontWeight: 800, lineHeight: 1 }}>{c.value}</div>
+                    <div key={i} className="print-surface" style={{ background: DARK.surface, border: `1px solid ${DARK.border}`, borderTop: `2px solid ${DARK.green}`, borderRadius: 10, padding: "16px 18px" }}>
+                      <div className="print-muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: DARK.muted, marginBottom: 8 }}>{c.label}</div>
+                      <div className="print-mono" style={{ fontFamily: "'DM Mono', monospace", fontSize: 22, fontWeight: 800, lineHeight: 1 }}>{c.value}</div>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
-              <div style={{ background: DARK.surface, border: `1px solid ${DARK.border}`, borderRadius: 10, padding: "20px 20px 10px" }}>
+            {/* ── Gráficos: ingresos + flota ── */}
+            <div className="print-no-break" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
+              <div className="print-surface" style={{ background: DARK.surface, border: `1px solid ${DARK.border}`, borderRadius: 10, padding: "20px 20px 10px" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                   <div>
-                    <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: DARK.muted }}>Ingresos por día</div>
-                    <div style={{ fontSize: 11, color: DARK.muted, marginTop: 2 }}>Suma de dinero_movimientos</div>
+                    <div className="print-muted" style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: DARK.muted }}>Ingresos por día</div>
+                    <div className="print-muted" style={{ fontSize: 11, color: DARK.muted, marginTop: 2 }}>Suma de dinero_movimientos</div>
                   </div>
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 16, fontWeight: 800 }}>{formatARS(totalIngresos)}</div>
+                  <div className="print-mono" style={{ fontFamily: "'DM Mono', monospace", fontSize: 16, fontWeight: 800 }}>{formatARS(totalIngresos)}</div>
                 </div>
                 <Chart options={ingresosOptions as any} series={ingresosSeries as any} type="area" height={240} />
               </div>
-              <div style={{ background: DARK.surface, border: `1px solid ${DARK.border}`, borderRadius: 10, padding: "20px 20px 10px" }}>
-                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: DARK.muted, marginBottom: 12 }}>Estado de flota</div>
+              <div className="print-surface" style={{ background: DARK.surface, border: `1px solid ${DARK.border}`, borderRadius: 10, padding: "20px 20px 10px" }}>
+                <div className="print-muted" style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: DARK.muted, marginBottom: 12 }}>Estado de flota</div>
                 {(data.charts.estadoVolquetes.values ?? []).some(v => v > 0)
                   ? <Chart options={donutOpts(data.charts.estadoVolquetes.labels) as any} series={data.charts.estadoVolquetes.values as any} type="donut" height={240} />
                   : <div style={{ height: 240, display: "flex", alignItems: "center", justifyContent: "center", color: DARK.muted, fontSize: 12 }}>Sin datos</div>}
               </div>
             </div>
 
+            {/* ── Gráficos: concepto + privados ── */}
             {(data.charts.conceptoDinero || data.charts.privados) && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              <div className="print-no-break" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                 {data.charts.conceptoDinero && (
-                  <div style={{ background: DARK.surface, border: `1px solid ${DARK.border}`, borderRadius: 10, padding: "20px 20px 10px" }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: DARK.muted, marginBottom: 12 }}>Ingresos por concepto</div>
+                  <div className="print-surface" style={{ background: DARK.surface, border: `1px solid ${DARK.border}`, borderRadius: 10, padding: "20px 20px 10px" }}>
+                    <div className="print-muted" style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: DARK.muted, marginBottom: 12 }}>Ingresos por concepto</div>
                     {data.charts.conceptoDinero.values.some(v => v > 0)
                       ? <Chart options={donutOpts(data.charts.conceptoDinero.labels, ["#a855f7", "#f59e0b", "#06b6d4"]) as any} series={data.charts.conceptoDinero.values as any} type="donut" height={240} />
                       : <div style={{ height: 240, display: "flex", alignItems: "center", justifyContent: "center", color: DARK.muted, fontSize: 12 }}>Sin ingresos en el período</div>}
                   </div>
                 )}
                 {data.charts.privados && (
-                  <div style={{ background: DARK.surface, border: `1px solid ${DARK.border}`, borderRadius: 10, padding: "20px 20px 10px" }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: DARK.muted, marginBottom: 12 }}>Privados vs Municipales</div>
+                  <div className="print-surface" style={{ background: DARK.surface, border: `1px solid ${DARK.border}`, borderRadius: 10, padding: "20px 20px 10px" }}>
+                    <div className="print-muted" style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: DARK.muted, marginBottom: 12 }}>Privados vs Municipales</div>
                     {data.charts.privados.values.some(v => v > 0)
                       ? <Chart options={donutOpts(data.charts.privados.labels, [DARK.accent, DARK.yellow]) as any} series={data.charts.privados.values as any} type="donut" height={240} />
                       : <div style={{ height: 240, display: "flex", alignItems: "center", justifyContent: "center", color: DARK.muted, fontSize: 12 }}>Sin datos</div>}
@@ -172,70 +302,107 @@ export default function StatsIndex() {
               </div>
             )}
 
-            <div style={{ background: DARK.surface, border: `1px solid ${DARK.border}`, borderRadius: 10, padding: "20px" }}>
+            {/* ── Tabla alquileres cerrados ── */}
+            <div className="print-surface print-no-break" style={{ background: DARK.surface, border: `1px solid ${DARK.border}`, borderRadius: 10, padding: "20px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: DARK.muted }}>Alquileres cerrados en el período</div>
+                <div className="print-muted" style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: DARK.muted }}>Alquileres cerrados en el período</div>
                 <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: "#22c55e18", border: "1px solid #22c55e30", color: DARK.green }}>{data.tables.alquileresCerrados.length} registros</span>
               </div>
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                  <thead><tr style={{ color: DARK.muted }}>{["Cliente", "Dirección", "Colocación", "Retiro", "Días", "Reemplazos", "Total ARS", "Nota"].map(h => <th key={h} style={{ textAlign: "left", padding: "6px 8px 10px", fontWeight: 600, fontSize: 11, whiteSpace: "nowrap" }}>{h}</th>)}</tr></thead>
+                  <thead>
+                    <tr className="print-muted" style={{ color: DARK.muted }}>
+                      {["Cliente", "Dirección", "Colocación", "Retiro", "Días", "Reemplazos", "Total ARS", "Nota"].map(h => (
+                        <th key={h} style={{ textAlign: "left", padding: "6px 8px 10px", fontWeight: 600, fontSize: 11, whiteSpace: "nowrap" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
                   <tbody>
                     {data.tables.alquileresCerrados.map((a) => (
                       <tr key={a.id} style={{ borderTop: `1px solid ${DARK.border}` }}>
                         <td style={{ padding: "8px", fontWeight: 600 }}>{a.cliente ?? "-"}</td>
-                        <td style={{ padding: "8px", color: DARK.muted }}>{a.direccion ?? "-"}</td>
-                        <td style={{ padding: "8px", whiteSpace: "nowrap", color: DARK.muted }}>{formatDate(a.fecha_colocacion)}</td>
-                        <td style={{ padding: "8px", whiteSpace: "nowrap", color: DARK.muted }}>{formatDate(a.fecha_retiro)}</td>
-                        <td style={{ padding: "8px" }}><span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 700, color: a.dias && a.dias > 7 ? DARK.yellow : DARK.text }}>{a.dias ?? "-"}d</span></td>
-                        <td style={{ padding: "8px", textAlign: "center" }}><span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 700, color: a.reemplazos_total && a.reemplazos_total > 0 ? "#a855f7" : DARK.muted }}>{a.reemplazos_total ?? 0}</span></td>
-                        <td style={{ padding: "8px", whiteSpace: "nowrap" }}><span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 700, color: DARK.green }}>{formatARS(a.dinero_total_ars ?? 0)}</span></td>
-                        <td style={{ padding: "8px", color: DARK.muted }}>{a.nota ?? "-"}</td>
+                        <td className="print-muted" style={{ padding: "8px", color: DARK.muted }}>{a.direccion ?? "-"}</td>
+                        <td className="print-muted" style={{ padding: "8px", whiteSpace: "nowrap", color: DARK.muted }}>{formatDate(a.fecha_colocacion)}</td>
+                        <td className="print-muted" style={{ padding: "8px", whiteSpace: "nowrap", color: DARK.muted }}>{formatDate(a.fecha_retiro)}</td>
+                        <td style={{ padding: "8px" }}>
+                          <span className="print-mono" style={{ fontFamily: "'DM Mono', monospace", fontWeight: 700, color: a.dias && a.dias > 7 ? DARK.yellow : DARK.text }}>{a.dias ?? "-"}d</span>
+                        </td>
+                        <td style={{ padding: "8px", textAlign: "center" }}>
+                          <span className="print-mono" style={{ fontFamily: "'DM Mono', monospace", fontWeight: 700, color: a.reemplazos_total && a.reemplazos_total > 0 ? "#a855f7" : DARK.muted }}>{a.reemplazos_total ?? 0}</span>
+                        </td>
+                        <td style={{ padding: "8px", whiteSpace: "nowrap" }}>
+                          <span className="print-mono" style={{ fontFamily: "'DM Mono', monospace", fontWeight: 700, color: DARK.green }}>{formatARS(a.dinero_total_ars ?? 0)}</span>
+                        </td>
+                        <td className="print-muted" style={{ padding: "8px", color: DARK.muted }}>{a.nota ?? "-"}</td>
                       </tr>
                     ))}
-                    {data.tables.alquileresCerrados.length === 0 && <tr><td colSpan={8} style={{ padding: "28px 8px", color: DARK.muted, textAlign: "center" }}>No hay alquileres cerrados en este período</td></tr>}
+                    {data.tables.alquileresCerrados.length === 0 && (
+                      <tr><td colSpan={8} style={{ padding: "28px 8px", color: DARK.muted, textAlign: "center" }}>No hay alquileres cerrados en este período</td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-              <div style={{ background: DARK.surface, border: `1px solid ${DARK.border}`, borderRadius: 10, padding: "20px" }}>
-                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: DARK.muted, marginBottom: 14 }}>Últimos movimientos</div>
+            {/* ── Tablas: movimientos + activos ── */}
+            <div className="print-grid-2col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              <div className="print-surface print-no-break" style={{ background: DARK.surface, border: `1px solid ${DARK.border}`, borderRadius: 10, padding: "20px" }}>
+                <div className="print-muted" style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: DARK.muted, marginBottom: 14 }}>Últimos movimientos</div>
                 <div style={{ overflowX: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                    <thead><tr style={{ color: DARK.muted }}>{["Fecha", "Volquete", "Tipo", "Ubicación nueva", "Nota"].map(h => <th key={h} style={{ textAlign: "left", padding: "6px 8px 10px", fontWeight: 600, fontSize: 11 }}>{h}</th>)}</tr></thead>
+                    <thead>
+                      <tr className="print-muted" style={{ color: DARK.muted }}>
+                        {["Fecha", "Volquete", "Tipo", "Ubicación nueva", "Nota"].map(h => (
+                          <th key={h} style={{ textAlign: "left", padding: "6px 8px 10px", fontWeight: 600, fontSize: 11 }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
                     <tbody>
                       {data.tables.ultimosMovimientos.map((m) => (
                         <tr key={m.id} style={{ borderTop: `1px solid ${DARK.border}` }}>
-                          <td style={{ padding: "8px", whiteSpace: "nowrap", color: DARK.muted }}>{formatDate(m.fecha)}</td>
+                          <td className="print-muted" style={{ padding: "8px", whiteSpace: "nowrap", color: DARK.muted }}>{formatDate(m.fecha)}</td>
                           <td style={{ padding: "8px", fontWeight: 600 }}>{m.volquete}</td>
-                          <td style={{ padding: "8px" }}><span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 4, background: "#4f7cff18", border: "1px solid #4f7cff30", color: "#7aa0ff" }}>{m.tipo}</span></td>
-                          <td style={{ padding: "8px", color: DARK.muted }}>{m.ubicacion_nueva ?? "-"}</td>
-                          <td style={{ padding: "8px", color: DARK.muted }}>{m.nota ?? "-"}</td>
+                          <td style={{ padding: "8px" }}>
+                            <span className="print-badge" style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 4, background: "#4f7cff18", border: "1px solid #4f7cff30", color: "#7aa0ff" }}>{m.tipo}</span>
+                          </td>
+                          <td className="print-muted" style={{ padding: "8px", color: DARK.muted }}>{m.ubicacion_nueva ?? "-"}</td>
+                          <td className="print-muted" style={{ padding: "8px", color: DARK.muted }}>{m.nota ?? "-"}</td>
                         </tr>
                       ))}
-                      {data.tables.ultimosMovimientos.length === 0 && <tr><td colSpan={5} style={{ padding: "20px 8px", color: DARK.muted, textAlign: "center" }}>Sin movimientos</td></tr>}
+                      {data.tables.ultimosMovimientos.length === 0 && (
+                        <tr><td colSpan={5} style={{ padding: "20px 8px", color: DARK.muted, textAlign: "center" }}>Sin movimientos</td></tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
               </div>
-              <div style={{ background: DARK.surface, border: `1px solid ${DARK.border}`, borderRadius: 10, padding: "20px" }}>
-                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: DARK.muted, marginBottom: 14 }}>Alquileres activos</div>
+
+              <div className="print-surface print-no-break" style={{ background: DARK.surface, border: `1px solid ${DARK.border}`, borderRadius: 10, padding: "20px" }}>
+                <div className="print-muted" style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: DARK.muted, marginBottom: 14 }}>Alquileres activos</div>
                 <div style={{ overflowX: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                    <thead><tr style={{ color: DARK.muted }}>{["Cliente", "Dirección", "Colocación", "Días", "Nota"].map(h => <th key={h} style={{ textAlign: "left", padding: "6px 8px 10px", fontWeight: 600, fontSize: 11 }}>{h}</th>)}</tr></thead>
+                    <thead>
+                      <tr className="print-muted" style={{ color: DARK.muted }}>
+                        {["Cliente", "Dirección", "Colocación", "Días", "Nota"].map(h => (
+                          <th key={h} style={{ textAlign: "left", padding: "6px 8px 10px", fontWeight: 600, fontSize: 11 }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
                     <tbody>
                       {data.tables.alquileresActivos.map((a) => (
                         <tr key={a.id} style={{ borderTop: `1px solid ${DARK.border}` }}>
                           <td style={{ padding: "8px", fontWeight: 600 }}>{a.cliente}</td>
-                          <td style={{ padding: "8px", color: DARK.muted }}>{a.direccion}</td>
-                          <td style={{ padding: "8px", whiteSpace: "nowrap", color: DARK.muted }}>{formatDate(a.fecha_colocacion)}</td>
-                          <td style={{ padding: "8px" }}><span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 700, color: a.dias_activo > 7 ? DARK.yellow : DARK.text }}>{a.dias_activo}d</span></td>
-                          <td style={{ padding: "8px", color: DARK.muted }}>{a.nota ?? "-"}</td>
+                          <td className="print-muted" style={{ padding: "8px", color: DARK.muted }}>{a.direccion}</td>
+                          <td className="print-muted" style={{ padding: "8px", whiteSpace: "nowrap", color: DARK.muted }}>{formatDate(a.fecha_colocacion)}</td>
+                          <td style={{ padding: "8px" }}>
+                            <span className="print-mono" style={{ fontFamily: "'DM Mono', monospace", fontWeight: 700, color: a.dias_activo > 7 ? DARK.yellow : DARK.text }}>{a.dias_activo}d</span>
+                          </td>
+                          <td className="print-muted" style={{ padding: "8px", color: DARK.muted }}>{a.nota ?? "-"}</td>
                         </tr>
                       ))}
-                      {data.tables.alquileresActivos.length === 0 && <tr><td colSpan={5} style={{ padding: "20px 8px", color: DARK.muted, textAlign: "center" }}>Sin alquileres activos</td></tr>}
+                      {data.tables.alquileresActivos.length === 0 && (
+                        <tr><td colSpan={5} style={{ padding: "20px 8px", color: DARK.muted, textAlign: "center" }}>Sin alquileres activos</td></tr>
+                      )}
                     </tbody>
                   </table>
                 </div>

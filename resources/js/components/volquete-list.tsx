@@ -261,93 +261,93 @@ export default function VolqueteList({
             </p>
           </div>
         ) : (
-          filtered.map((v) => {
-            const dias = calcularDias(v.fechaColocacion);
-            const esPrivado = v.esPrivado !== false;
-            const vencido = esPrivado && estaVencido(v.fechaColocacion, 7);
-            const isSelected = selectedId === v.id;
+filtered.map((v) => {
+  const dias = calcularDias(v.fechaColocacion);
+  const esPrivado = v.esPrivado !== false;
+  const vencido = esPrivado && v.colocado && estaVencido(v.fechaColocacion, 7);
+  const isSelected = selectedId === v.id;
 
-            const stateColor = vencido ? "#ff6b6b"
-              : !v.colocado ? "#9ba3c0"
-              : esPrivado ? "#eab308"
-              : "#4ade80";
+  const stateColor = vencido ? "#ff6b6b"
+    : !v.colocado ? "#9ba3c0"
+    : esPrivado ? "#eab308"
+    : "#4ade80";
 
-            return (
-              <button
-                key={v.id}
-                className={`vq-item${isSelected ? " selected" : ""}`}
-                onClick={() => onSelect(v)}
-              >
-                <div className="vq-icon-wrap" style={{
-                  background: `${stateColor}12`,
-                  border: `1px solid ${stateColor}30`,
-                }}>
-                  <Truck size={15} color={stateColor} />
-                </div>
+  return (
+    <button
+      key={v.id}
+      className={`vq-item${isSelected ? " selected" : ""}`}
+      onClick={() => onSelect(v)}
+    >
+      <div className="vq-icon-wrap" style={{
+        background: `${stateColor}12`,
+        border: `1px solid ${stateColor}30`,
+      }}>
+        <Truck size={15} color={stateColor} />
+      </div>
 
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#e2e5f0", lineHeight: 1.2 }}>
-                      {v.nombre}
-                    </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#e2e5f0", lineHeight: 1.2 }}>
+            {v.nombre}
+          </span>
 
-                    <span style={{
-                      fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 5,
-                      background: esPrivado ? "#eab30815" : "#4ade8015",
-                      color: esPrivado ? "#eab308" : "#4ade80",
-                      border: `1px solid ${esPrivado ? "#eab30830" : "#4ade8030"}`,
-                      letterSpacing: "0.03em",
-                    }}>
-                      {esPrivado ? "Privado" : "Municipal"}
-                    </span>
+          <span style={{
+            fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 5,
+            background: esPrivado ? "#eab30815" : "#4ade8015",
+            color: esPrivado ? "#eab308" : "#4ade80",
+            border: `1px solid ${esPrivado ? "#eab30830" : "#4ade8030"}`,
+            letterSpacing: "0.03em",
+          }}>
+            {esPrivado ? "Privado" : "Municipal"}
+          </span>
 
-                    {esPrivado ? (
-                      v.colocado ? (
-                        <span style={{
-                          fontSize: 10, fontWeight: 700,
-                          color: vencido ? "#ff6b6b" : "#4ade80",
-                          display: "flex", alignItems: "center", gap: 3,
-                        }}>
-                          {vencido && <AlertTriangle size={10} />}
-                          {vencido ? "Vencido" : `${dias}d`}
-                        </span>
-                      ) : (
-                        <span style={{ fontSize: 10, fontWeight: 600, color: "#4a4f6a" }}>Libre</span>
-                      )
-                    ) : null}
-                  </div>
+          {esPrivado ? (
+            v.colocado ? (
+              <span style={{
+                fontSize: 10, fontWeight: 700,
+                color: vencido ? "#ff6b6b" : "#4ade80",
+                display: "flex", alignItems: "center", gap: 3,
+              }}>
+                {vencido && <AlertTriangle size={10} />}
+                {vencido ? "Vencido" : `${dias}d`}
+              </span>
+            ) : (
+              <span style={{ fontSize: 10, fontWeight: 600, color: "#4a4f6a" }}>Libre</span>
+            )
+          ) : null}
+        </div>
 
-                  <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 3 }}>
-                    <MapPin size={10} color="#3d4260" style={{ flexShrink: 0 }} />
-                    <span style={{
-                      fontSize: 11, color: "#4a4f6a",
-                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                    }}>
-                      {v.direccion || "Sin dirección"}
-                    </span>
-                    {v.cliente && (
-                      <>
-                        <span style={{ color: "#2a2d3a", fontSize: 10 }}>·</span>
-                        <span style={{
-                          fontSize: 11, color: "#4a4f6a",
-                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                        }}>
-                          {v.cliente}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 3 }}>
+          <MapPin size={10} color="#3d4260" style={{ flexShrink: 0 }} />
+          <span style={{
+            fontSize: 11, color: "#4a4f6a",
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>
+            {v.direccion || "Sin dirección"}
+          </span>
+          {v.cliente && (
+            <>
+              <span style={{ color: "#2a2d3a", fontSize: 10 }}>·</span>
+              <span style={{
+                fontSize: 11, color: "#4a4f6a",
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              }}>
+                {v.cliente}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
 
-                <div style={{
-                  width: 7, height: 7, borderRadius: "50%",
-                  background: stateColor,
-                  boxShadow: `0 0 6px ${stateColor}80`,
-                  flexShrink: 0,
-                }} />
-              </button>
-            );
-          })
+      <div style={{
+        width: 7, height: 7, borderRadius: "50%",
+        background: stateColor,
+        boxShadow: `0 0 6px ${stateColor}80`,
+        flexShrink: 0,
+      }} />
+    </button>
+  );
+})
         )}
       </div>
     </div>

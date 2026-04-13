@@ -40,12 +40,12 @@ function Donut({
     <div className="sp-donut-card">
       <div className="sp-donut-title">{title}</div>
       <div className="sp-donut-wrap">
-        <ResponsiveContainer width="100%" height={180}>
+        <ResponsiveContainer width="100%" height={220}>
           <PieChart>
             <Pie
               data={data}
-              innerRadius={56}
-              outerRadius={82}
+              innerRadius={68}
+              outerRadius={98}
               paddingAngle={3}
               dataKey="value"
               isAnimationActive={false}
@@ -105,7 +105,6 @@ export default function StatsPanel({
 }) {
   const { isJefe } = useAuth();
 
-  // Ingresos del día desde el endpoint
   const [ingresosHoy, setIngresosHoy] = useState<{ colocacion: number; reemplazo: number; traslado: number; total: number } | null>(null);
   const [loadingIngresos, setLoadingIngresos] = useState(false);
 
@@ -184,64 +183,427 @@ export default function StatsPanel({
   return (
     <>
       <style>{`
-        .sp-root { --sp-bg:#0d0f11; --sp-surface:#13171b; --sp-surface-2:#1a1f25; --sp-border:#252b33; --sp-border-hi:#2e3740; --sp-text:#e8ecf0; --sp-muted:#5a6472; --sp-accent:#f5c842; --sp-accent-dim:rgba(245,200,66,.12); --sp-font-mono:'DM Mono', monospace; --sp-font-ui:'DM Sans', system-ui, sans-serif; --sp-radius:6px; font-family:var(--sp-font-ui); background:var(--sp-bg); color:var(--sp-text); height:100%; display:flex; flex-direction:column; position:relative; overflow:hidden; }
-        .sp-root::before { content:''; position:absolute; inset:0; background-image:linear-gradient(var(--sp-border) 1px, transparent 1px), linear-gradient(90deg, var(--sp-border) 1px, transparent 1px); background-size:32px 32px; opacity:.28; pointer-events:none; z-index:0; }
-        .sp-root > * { position:relative; z-index:1; }
-        .sp-header { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--sp-border); background:linear-gradient(135deg, var(--sp-surface) 0%, var(--sp-surface-2) 100%); flex-shrink:0; }
-        .sp-header-left { display:flex; align-items:center; gap:10px; }
-        .sp-header-icon { width:32px; height:32px; border-radius:6px; background:var(--sp-accent-dim); border:1px solid rgba(245,200,66,.3); display:flex; align-items:center; justify-content:center; color:var(--sp-accent); }
-        .sp-header-title { font-family:var(--sp-font-mono); font-size:13px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--sp-text); }
-        .sp-header-sub { font-size:11px; color:var(--sp-muted); letter-spacing:.04em; margin-top:1px; }
-        .sp-header-badge { background:var(--sp-accent-dim); border:1px solid rgba(245,200,66,.25); color:var(--sp-accent); font-family:var(--sp-font-mono); font-size:10px; font-weight:700; letter-spacing:.06em; padding:2px 8px; border-radius:3px; text-transform:uppercase; }
-        .sp-close-btn { width:30px; height:30px; border-radius:5px; border:1px solid var(--sp-border); background:transparent; color:var(--sp-muted); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all .15s; margin-left:12px; }
-        .sp-close-btn:hover { background:var(--sp-surface-2); color:var(--sp-text); border-color:var(--sp-border-hi); }
-        .sp-content { flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:16px; }
-        .sp-section-label { font-family:var(--sp-font-mono); font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--sp-muted); display:flex; align-items:center; gap:8px; margin-bottom:2px; }
-        .sp-section-label::after { content:''; flex:1; height:1px; background:var(--sp-border); }
-        .sp-donut-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-        @media (max-width:640px){ .sp-donut-grid { grid-template-columns:1fr; } }
-        .sp-donut-card { background:var(--sp-surface); border:1px solid var(--sp-border); border-radius:var(--sp-radius); padding:16px; position:relative; overflow:hidden; }
-        .sp-donut-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg, var(--sp-accent) 0%, transparent 100%); opacity:.5; }
-        .sp-donut-title { font-family:var(--sp-font-mono); font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--sp-muted); margin-bottom:8px; }
-        .sp-donut-wrap { position:relative; height:180px; overflow:hidden; border-radius:8px; }
-        .sp-donut-center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none; gap:2px; }
-        .sp-donut-center-label { font-family:var(--sp-font-mono); font-size:9px; font-weight:700; letter-spacing:.1em; color:var(--sp-muted); text-transform:uppercase; }
-        .sp-donut-center-value { font-family:var(--sp-font-mono); font-size:18px; font-weight:800; color:var(--sp-text); line-height:1; }
-        .sp-legend { margin-top:10px; display:flex; flex-direction:column; gap:5px; border-top:1px solid var(--sp-border); padding-top:10px; }
-        .sp-legend-row { display:flex; align-items:center; gap:7px; font-size:11px; }
-        .sp-legend-dot { width:8px; height:8px; border-radius:2px; flex-shrink:0; }
-        .sp-legend-name { color:var(--sp-muted); flex:1; font-size:11px; }
-        .sp-legend-value { font-family:var(--sp-font-mono); font-size:12px; font-weight:700; color:var(--sp-text); }
-        .sp-tooltip { background:var(--sp-surface-2); border:1px solid var(--sp-border-hi); border-radius:4px; padding:6px 10px; display:flex; gap:10px; align-items:center; font-family:var(--sp-font-mono); font-size:11px; }
-        .sp-tooltip-label { color:var(--sp-muted); }
-        .sp-tooltip-value { color:var(--sp-accent); font-weight:700; }
-        .sp-stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-        .sp-stat-card { background:var(--sp-surface); border:1px solid var(--sp-border); border-radius:var(--sp-radius); padding:14px 16px; }
-        .sp-stat-card--accent { border-color:rgba(245,200,66,.3); background:linear-gradient(135deg, var(--sp-surface) 60%, var(--sp-accent-dim) 100%); }
-        .sp-stat-icon { color:var(--sp-muted); margin-bottom:8px; }
-        .sp-stat-label { font-family:var(--sp-font-mono); font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--sp-muted); margin-bottom:6px; }
-        .sp-stat-value { font-family:var(--sp-font-mono); font-size:28px; font-weight:800; color:var(--sp-text); line-height:1; }
-        .sp-occ-bar-wrap { background:var(--sp-surface); border:1px solid var(--sp-border); border-radius:var(--sp-radius); padding:14px 16px; }
-        .sp-occ-bar-header { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; }
-        .sp-occ-bar-label { font-family:var(--sp-font-mono); font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--sp-muted); }
-        .sp-occ-bar-pct { font-family:var(--sp-font-mono); font-size:20px; font-weight:800; color:var(--sp-accent); }
-        .sp-occ-track { height:6px; background:var(--sp-surface-2); border-radius:3px; overflow:hidden; }
-        .sp-occ-fill { height:100%; border-radius:3px; background:linear-gradient(90deg, var(--sp-accent) 0%, #fde68a 100%); }
-        .sp-loading { display:flex; align-items:center; justify-content:center; height:180px; color:var(--sp-muted); font-family:var(--sp-font-mono); font-size:11px; letter-spacing:.06em; }
+        .sp-root {
+          --sp-bg: #0b0d10;
+          --sp-surface: rgba(19, 23, 27, 0.88);
+          --sp-surface-2: rgba(24, 29, 35, 0.92);
+          --sp-border: rgba(255, 255, 255, 0.08);
+          --sp-border-hi: rgba(255, 255, 255, 0.14);
+          --sp-text: #edf2f7;
+          --sp-muted: #7d8794;
+          --sp-accent: #f5c842;
+          --sp-accent-dim: rgba(245, 200, 66, 0.12);
+          --sp-shadow: 0 18px 40px rgba(0, 0, 0, 0.34);
+          --sp-font-mono: 'DM Mono', monospace;
+          --sp-font-ui: 'DM Sans', system-ui, sans-serif;
+          --sp-radius: 18px;
+          font-family: var(--sp-font-ui);
+          background:
+            radial-gradient(circle at top left, rgba(245, 200, 66, 0.08), transparent 32%),
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), transparent 28%),
+            linear-gradient(180deg, #0a0c0f 0%, #0d1014 100%);
+          color: var(--sp-text);
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .sp-root::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background-image:
+            linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
+          background-size: 36px 36px;
+          opacity: .18;
+          pointer-events: none;
+          z-index: 0;
+        }
+
+        .sp-root > * {
+          position: relative;
+          z-index: 1;
+        }
+
+        .sp-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 18px 22px;
+          border-bottom: 1px solid var(--sp-border);
+          background: linear-gradient(135deg, rgba(20,24,29,.96) 0%, rgba(15,18,23,.86) 100%);
+          backdrop-filter: blur(12px);
+          flex-shrink: 0;
+        }
+
+        .sp-header-left {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .sp-header-icon {
+          width: 38px;
+          height: 38px;
+          border-radius: 12px;
+          background: linear-gradient(135deg, rgba(245,200,66,.18), rgba(245,200,66,.06));
+          border: 1px solid rgba(245,200,66,.24);
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--sp-accent);
+        }
+
+        .sp-header-title {
+          font-family: var(--sp-font-mono);
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: .12em;
+          text-transform: uppercase;
+          color: var(--sp-text);
+        }
+
+        .sp-header-sub {
+          font-size: 11px;
+          color: var(--sp-muted);
+          letter-spacing: .04em;
+          margin-top: 2px;
+        }
+
+        .sp-header-badge {
+          background: var(--sp-accent-dim);
+          border: 1px solid rgba(245,200,66,.22);
+          color: var(--sp-accent);
+          font-family: var(--sp-font-mono);
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: .08em;
+          padding: 4px 9px;
+          border-radius: 999px;
+          text-transform: uppercase;
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+        }
+
+        .sp-close-btn {
+          width: 34px;
+          height: 34px;
+          border-radius: 10px;
+          border: 1px solid var(--sp-border);
+          background: rgba(255,255,255,.02);
+          color: var(--sp-muted);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all .18s ease;
+          margin-left: 12px;
+        }
+
+        .sp-close-btn:hover {
+          background: rgba(255,255,255,.05);
+          color: var(--sp-text);
+          border-color: var(--sp-border-hi);
+          transform: translateY(-1px);
+        }
+
+        .sp-content {
+          flex: 1;
+          overflow-y: auto;
+          padding: 22px;
+          display: flex;
+          flex-direction: column;
+          gap: 18px;
+        }
+
+        .sp-section-label {
+          font-family: var(--sp-font-mono);
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: .14em;
+          text-transform: uppercase;
+          color: var(--sp-muted);
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 2px;
+        }
+
+        .sp-section-label::after {
+          content: '';
+          flex: 1;
+          height: 1px;
+          background: linear-gradient(90deg, var(--sp-border-hi), transparent);
+        }
+
+        .sp-donut-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 18px;
+          max-width: 520px;
+          width: 100%;
+          margin: 0 auto;
+        }
+
+        .sp-donut-card {
+          background: linear-gradient(180deg, rgba(20,24,29,.96), rgba(14,17,22,.92));
+          border: 1px solid var(--sp-border);
+          border-radius: 22px;
+          padding: 18px;
+          position: relative;
+          overflow: hidden;
+          box-shadow: var(--sp-shadow);
+          backdrop-filter: blur(10px);
+        }
+
+        .sp-donut-card::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 2px;
+          background: linear-gradient(90deg, var(--sp-accent) 0%, rgba(245,200,66,0) 100%);
+          opacity: .7;
+        }
+
+        .sp-donut-title {
+          font-family: var(--sp-font-mono);
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: .1em;
+          text-transform: uppercase;
+          color: var(--sp-muted);
+          margin-bottom: 10px;
+        }
+
+        .sp-donut-wrap {
+          position: relative;
+          height: 220px;
+          overflow: hidden;
+          border-radius: 16px;
+          background: radial-gradient(circle at center, rgba(255,255,255,.02), transparent 70%);
+        }
+
+        .sp-donut-center {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          pointer-events: none;
+          gap: 4px;
+        }
+
+        .sp-donut-center-label {
+          font-family: var(--sp-font-mono);
+          font-size: 9px;
+          font-weight: 700;
+          letter-spacing: .14em;
+          color: var(--sp-muted);
+          text-transform: uppercase;
+        }
+
+        .sp-donut-center-value {
+          font-family: var(--sp-font-mono);
+          font-size: 20px;
+          font-weight: 800;
+          color: var(--sp-text);
+          line-height: 1;
+          text-align: center;
+          max-width: 75%;
+          word-break: break-word;
+        }
+
+        .sp-legend {
+          margin-top: 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 7px;
+          border-top: 1px solid var(--sp-border);
+          padding-top: 12px;
+        }
+
+        .sp-legend-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 11px;
+        }
+
+        .sp-legend-dot {
+          width: 9px;
+          height: 9px;
+          border-radius: 999px;
+          flex-shrink: 0;
+          box-shadow: 0 0 10px rgba(255,255,255,.08);
+        }
+
+        .sp-legend-name {
+          color: var(--sp-muted);
+          flex: 1;
+          font-size: 11px;
+        }
+
+        .sp-legend-value {
+          font-family: var(--sp-font-mono);
+          font-size: 12px;
+          font-weight: 700;
+          color: var(--sp-text);
+        }
+
+        .sp-tooltip {
+          background: rgba(24,29,35,.98);
+          border: 1px solid var(--sp-border-hi);
+          border-radius: 10px;
+          padding: 8px 10px;
+          display: flex;
+          gap: 10px;
+          align-items: center;
+          font-family: var(--sp-font-mono);
+          font-size: 11px;
+          box-shadow: 0 10px 25px rgba(0,0,0,.25);
+        }
+
+        .sp-tooltip-label {
+          color: var(--sp-muted);
+        }
+
+        .sp-tooltip-value {
+          color: var(--sp-accent);
+          font-weight: 700;
+        }
+
+        .sp-stat-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+        }
+
+        @media (max-width: 640px) {
+          .sp-stat-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        .sp-stat-card {
+          background: linear-gradient(180deg, rgba(20,24,29,.96), rgba(14,17,22,.92));
+          border: 1px solid var(--sp-border);
+          border-radius: 18px;
+          padding: 16px 16px 15px;
+          box-shadow: var(--sp-shadow);
+          min-height: 112px;
+        }
+
+        .sp-stat-card--accent {
+          border-color: rgba(245,200,66,.25);
+          background:
+            linear-gradient(135deg, rgba(20,24,29,.96) 55%, rgba(245,200,66,.08) 100%);
+        }
+
+        .sp-stat-icon {
+          color: var(--sp-muted);
+          margin-bottom: 10px;
+        }
+
+        .sp-stat-label {
+          font-family: var(--sp-font-mono);
+          font-size: 9px;
+          font-weight: 700;
+          letter-spacing: .12em;
+          text-transform: uppercase;
+          color: var(--sp-muted);
+          margin-bottom: 8px;
+        }
+
+        .sp-stat-value {
+          font-family: var(--sp-font-mono);
+          font-size: 30px;
+          font-weight: 800;
+          color: var(--sp-text);
+          line-height: 1;
+        }
+
+        .sp-occ-bar-wrap {
+          background: linear-gradient(180deg, rgba(20,24,29,.96), rgba(14,17,22,.92));
+          border: 1px solid var(--sp-border);
+          border-radius: 18px;
+          padding: 16px 16px 18px;
+          box-shadow: var(--sp-shadow);
+        }
+
+        .sp-occ-bar-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          margin-bottom: 12px;
+          gap: 10px;
+        }
+
+        .sp-occ-bar-label {
+          font-family: var(--sp-font-mono);
+          font-size: 9px;
+          font-weight: 700;
+          letter-spacing: .12em;
+          text-transform: uppercase;
+          color: var(--sp-muted);
+        }
+
+        .sp-occ-bar-pct {
+          font-family: var(--sp-font-mono);
+          font-size: 22px;
+          font-weight: 800;
+          color: var(--sp-accent);
+        }
+
+        .sp-occ-track {
+          height: 10px;
+          background: rgba(255,255,255,.05);
+          border-radius: 999px;
+          overflow: hidden;
+          border: 1px solid rgba(255,255,255,.04);
+        }
+
+        .sp-occ-fill {
+          height: 100%;
+          border-radius: 999px;
+          background: linear-gradient(90deg, var(--sp-accent) 0%, #fde68a 100%);
+          box-shadow: 0 0 14px rgba(245,200,66,.25);
+        }
+
+        .sp-loading {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 220px;
+          color: var(--sp-muted);
+          font-family: var(--sp-font-mono);
+          font-size: 11px;
+          letter-spacing: .08em;
+        }
       `}</style>
 
       <div className="sp-root">
         <div className="sp-header">
           <div className="sp-header-left">
-            <div className="sp-header-icon"><Truck size={15} /></div>
+            <div className="sp-header-icon">
+              <Truck size={16} />
+            </div>
             <div>
               <div className="sp-header-title">Estadísticas</div>
               <div className="sp-header-sub">{volquetes.length} volquetes cargados</div>
             </div>
           </div>
+
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span className="sp-header-badge">Live</span>
-            <button className="sp-close-btn" onClick={onClose}><X size={14} /></button>
+            <button className="sp-close-btn" onClick={onClose}>
+              <X size={14} />
+            </button>
           </div>
         </div>
 
@@ -256,8 +618,8 @@ export default function StatsPanel({
               centerText={`${ocupacionPct}%`}
             />
 
-            {isJefe && (
-              loadingIngresos ? (
+            {isJefe &&
+              (loadingIngresos ? (
                 <div className="sp-donut-card">
                   <div className="sp-donut-title">Ingresos del día · ARS</div>
                   <div className="sp-loading">Cargando...</div>
@@ -269,8 +631,7 @@ export default function StatsPanel({
                   colors={dineroData.length ? ["#a855f7", "#f59e0b", "#06b6d4"] : ["#2e3740"]}
                   centerText={dineroFmt}
                 />
-              )
-            )}
+              ))}
           </div>
 
           <div className="sp-occ-bar-wrap">
@@ -284,6 +645,7 @@ export default function StatsPanel({
           </div>
 
           <div className="sp-section-label">Métricas clave</div>
+
           <div className="sp-stat-grid">
             <StatCard label="Total volquetes" value={volquetes.length} icon={Package} />
             <StatCard label="Privados" value={privados.length} icon={Truck} />
