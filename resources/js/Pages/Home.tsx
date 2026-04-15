@@ -461,6 +461,65 @@ const res = await fetch("/api/config/precio-volquete", {
         }
         @media (min-width: 768px) { .md-hidden { display: none !important; } .desktop-only { display: flex !important; } }
         @media (max-width: 767px) { .desktop-only { display: none !important; } }
+        .logo-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.logo-icon {
+  padding: 4px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.logo-icon img {
+  height: 58px;
+  width: 58px;
+  object-fit: contain;
+  display: block;
+}
+
+.logo-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+  min-width: 0;
+}
+
+.logo-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: white;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.logo-subtitle {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 4px;
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .logo-text {
+    display: none !important;
+  }
+
+  .logo-icon {
+    padding: 0;
+  }
+
+  .logo-icon img {
+    height: 72px;
+    width: 72px;
+  }
+}
       `}</style>
 
 <header
@@ -478,49 +537,18 @@ const res = await fetch("/api/config/precio-volquete", {
     fontFamily: "'DM Sans', system-ui, sans-serif",
     gap: 12,
   }}
+  
 >
-  <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-    <div
-      style={{
-        width: 32,
-        height: 32,
-        borderRadius: 9,
-        background: "linear-gradient(135deg, #4f7cff22, #4f7cff44)",
-        border: "1px solid #4f7cff40",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <Truck size={15} color="#4f7cff" />
-    </div>
-    <div>
-      <h1
-        style={{
-          fontSize: 13,
-          fontWeight: 700,
-          color: "#e8ecf8",
-          margin: 0,
-          lineHeight: 1.25,
-          letterSpacing: "-0.01em",
-        }}
-      >
-        TomasGardon<span style={{ color: "#4f7cff" }}>Volquetes</span>
-      </h1>
-      <p
-        style={{
-          fontSize: 10,
-          color: "#3d4260",
-          margin: 0,
-          fontWeight: 500,
-          letterSpacing: "0.04em",
-          textTransform: "uppercase",
-        }}
-      >
-        Sistema de Gestión
-      </p>
-    </div>
+<div className="logo-container">
+  <div className="logo-icon">
+    <img src="/icons/android-icon-192x192.png" alt="TG" />
   </div>
+
+  <div className="logo-text">
+    <span className="logo-title">T.G VOLQUETES</span>
+    <span className="logo-subtitle">Choele Choel · Río Negro</span>
+  </div>
+</div>
 
   <div className="desktop-only" style={{ display: "flex", alignItems: "center", gap: 6 }}>
     <div className="hdr-stat">

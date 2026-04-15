@@ -22,7 +22,7 @@ export default function Login({ status }) {
             <Head title="Iniciar Sesión" />
 
             <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
+                @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
 
                 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -43,8 +43,8 @@ export default function Login({ status }) {
                     position: fixed;
                     inset: 0;
                     background:
-                        radial-gradient(ellipse 70% 60% at 20% 100%, rgba(22, 101, 52, 0.5) 0%, transparent 55%),
-                        radial-gradient(ellipse 50% 40% at 80% 0%, rgba(234, 179, 8, 0.1) 0%, transparent 50%),
+                        radial-gradient(ellipse 70% 60% at 20% 100%, rgba(22, 101, 52, 0.42) 0%, transparent 55%),
+                        radial-gradient(ellipse 50% 40% at 80% 0%, rgba(234, 179, 8, 0.08) 0%, transparent 50%),
                         radial-gradient(ellipse 80% 80% at 50% 50%, rgba(10, 30, 14, 0.9) 0%, transparent 100%);
                     pointer-events: none;
                 }
@@ -54,8 +54,8 @@ export default function Login({ status }) {
                     position: fixed;
                     inset: 0;
                     background-image:
-                        linear-gradient(rgba(74, 222, 128, 0.035) 1px, transparent 1px),
-                        linear-gradient(90deg, rgba(74, 222, 128, 0.035) 1px, transparent 1px);
+                        linear-gradient(rgba(74, 222, 128, 0.02) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(74, 222, 128, 0.02) 1px, transparent 1px);
                     background-size: 56px 56px;
                     pointer-events: none;
                 }
@@ -65,7 +65,7 @@ export default function Login({ status }) {
                     width: 500px;
                     height: 500px;
                     border-radius: 50%;
-                    background: radial-gradient(circle, rgba(34, 197, 94, 0.12) 0%, transparent 70%);
+                    background: radial-gradient(circle, rgba(34, 197, 94, 0.1) 0%, transparent 70%);
                     bottom: -100px;
                     left: -100px;
                     pointer-events: none;
@@ -82,15 +82,15 @@ export default function Login({ status }) {
                     z-index: 1;
                     width: 100%;
                     max-width: 420px;
-                    background: rgba(8, 22, 10, 0.75);
+                    background: rgba(6, 18, 8, 0.88);
                     backdrop-filter: blur(28px);
-                    border: 1px solid rgba(74, 222, 128, 0.12);
+                    border: 1px solid rgba(74, 222, 128, 0.14);
                     border-radius: 24px;
-                    padding: 2.75rem 2.5rem;
+                    padding: 2.4rem 2.5rem 2.6rem;
                     box-shadow:
                         0 0 0 1px rgba(0,0,0,0.3),
-                        0 32px 64px rgba(0, 0, 0, 0.5),
-                        0 0 80px rgba(22, 163, 74, 0.08);
+                        0 24px 60px rgba(0, 0, 0, 0.55),
+                        0 0 36px rgba(22, 163, 74, 0.06);
                     animation: appear 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
                 }
 
@@ -101,71 +101,74 @@ export default function Login({ status }) {
 
                 .logo-wrap {
                     display: flex;
+                    flex-direction: column;
                     align-items: center;
-                    gap: 0.75rem;
-                    margin-bottom: 2.25rem;
+                    justify-content: center;
+                    margin-bottom: 1.4rem;
+                    text-align: center;
                 }
 
                 .logo-box {
-                    width: 48px;
-                    height: 48px;
-                    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
-                    border-radius: 14px;
+                    width: 92px;
+                    height: 92px;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    box-shadow: 0 0 28px rgba(34, 197, 94, 0.45), inset 0 1px 0 rgba(255,255,255,0.15);
                     flex-shrink: 0;
+                    margin-bottom: 1rem;
                 }
 
-                .logo-letters {
-                    font-family: 'Syne', sans-serif;
-                    font-weight: 800;
-                    font-size: 1.1rem;
-                    color: #fff;
-                    letter-spacing: -0.02em;
+                .logo-box img {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: contain;
+                    display: block;
                 }
 
                 .logo-text {
                     display: flex;
                     flex-direction: column;
+                    align-items: center;
                     line-height: 1.1;
                 }
 
                 .logo-name {
-                    font-family: 'Syne', sans-serif;
-                    font-weight: 800;
-                    font-size: 1.15rem;
-                    color: #f0fdf4;
+                    font-family: 'Montserrat', sans-serif;
+                    font-weight: 700;
+                    font-size: 1.5rem;
+                    color: #f8fafc;
                     letter-spacing: -0.02em;
                 }
 
                 .logo-sub {
                     font-size: 0.72rem;
-                    color: rgba(187, 247, 208, 0.4);
-                    font-weight: 400;
-                    letter-spacing: 0.06em;
+                    color: #F5C800;
+                    font-weight: 600;
+                    letter-spacing: 0.14em;
                     text-transform: uppercase;
+                    margin-top: 0.42rem;
+                    font-family: 'Montserrat', sans-serif;
                 }
 
                 .heading-wrap {
-                    margin-bottom: 2rem;
+                    margin-bottom: 1.5rem;
+                    text-align: center;
                 }
 
                 .heading {
-                    font-family: 'Syne', sans-serif;
-                    font-size: 1.6rem;
+                    font-family: 'Montserrat', sans-serif;
+                    font-size: 1.95rem;
                     font-weight: 800;
                     color: #f0fdf4;
                     letter-spacing: -0.03em;
-                    line-height: 1.1;
-                    margin-bottom: 0.35rem;
+                    line-height: 1.05;
+                    margin-bottom: 0.5rem;
                 }
 
                 .subheading {
-                    font-size: 0.85rem;
-                    color: rgba(187, 247, 208, 0.45);
-                    font-weight: 300;
+                    font-size: 0.95rem;
+                    color: rgba(187, 247, 208, 0.42);
+                    font-weight: 400;
                 }
 
                 .status-bar {
@@ -185,12 +188,13 @@ export default function Login({ status }) {
 
                 .field-label {
                     display: block;
-                    font-size: 0.75rem;
-                    font-weight: 500;
-                    color: rgba(187, 247, 208, 0.6);
-                    margin-bottom: 0.45rem;
-                    letter-spacing: 0.05em;
+                    font-size: 0.78rem;
+                    font-weight: 700;
+                    color: rgba(187, 247, 208, 0.52);
+                    margin-bottom: 0.55rem;
+                    letter-spacing: 0.04em;
                     text-transform: uppercase;
+                    font-family: 'Montserrat', sans-serif;
                 }
 
                 .input-wrap {
@@ -211,9 +215,9 @@ export default function Login({ status }) {
                     width: 100% !important;
                     background: rgba(255,255,255,0.03) !important;
                     border: 1px solid rgba(74, 222, 128, 0.13) !important;
-                    border-radius: 11px !important;
-                    padding: 0.8rem 1rem 0.8rem 2.6rem !important;
-                    font-size: 0.9rem !important;
+                    border-radius: 14px !important;
+                    padding: 0.92rem 1rem 0.92rem 2.8rem !important;
+                    font-size: 0.96rem !important;
                     color: #f0fdf4 !important;
                     font-family: 'DM Sans', sans-serif !important;
                     transition: border-color 0.2s, background 0.2s, box-shadow 0.2s !important;
@@ -245,26 +249,26 @@ export default function Login({ status }) {
                 }
 
                 .remember-text {
-                    font-size: 0.83rem;
+                    font-size: 0.9rem;
                     color: rgba(187, 247, 208, 0.45);
                 }
 
                 .btn {
                     width: 100%;
-                    padding: 0.9rem;
+                    padding: 1rem;
                     background: linear-gradient(160deg, #22c55e 0%, #16a34a 50%, #15803d 100%);
                     border: none;
-                    border-radius: 12px;
+                    border-radius: 14px;
                     color: #fff;
-                    font-family: 'Syne', sans-serif;
-                    font-size: 0.95rem;
+                    font-family: 'Montserrat', sans-serif;
+                    font-size: 1rem;
                     font-weight: 700;
                     letter-spacing: 0.01em;
                     cursor: pointer;
                     position: relative;
                     overflow: hidden;
                     transition: transform 0.15s, box-shadow 0.15s;
-                    box-shadow: 0 4px 20px rgba(22, 163, 74, 0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+                    box-shadow: 0 4px 20px rgba(22, 163, 74, 0.35), inset 0 1px 0 rgba(255,255,255,0.15);
                 }
 
                 .btn::after {
@@ -277,7 +281,7 @@ export default function Login({ status }) {
 
                 .btn:hover:not(:disabled) {
                     transform: translateY(-1px);
-                    box-shadow: 0 8px 28px rgba(22, 163, 74, 0.5), inset 0 1px 0 rgba(255,255,255,0.15);
+                    box-shadow: 0 8px 28px rgba(22, 163, 74, 0.42), inset 0 1px 0 rgba(255,255,255,0.15);
                 }
 
                 .btn:active:not(:disabled) { transform: translateY(0); }
@@ -304,16 +308,16 @@ export default function Login({ status }) {
                     justify-content: center;
                     gap: 0.4rem;
                     margin-top: 2rem;
-                    padding: 0.55rem 1rem;
+                    padding: 0.75rem 1rem;
                     background: rgba(234, 179, 8, 0.05);
                     border: 1px solid rgba(234, 179, 8, 0.1);
-                    border-radius: 8px;
+                    border-radius: 12px;
                 }
 
                 .badge span {
-                    font-size: 0.7rem;
-                    color: rgba(234, 179, 8, 0.5);
-                    letter-spacing: 0.03em;
+                    font-size: 0.78rem;
+                    color: rgba(234, 179, 8, 0.58);
+                    letter-spacing: 0.02em;
                 }
 
                 .top-line {
@@ -325,6 +329,30 @@ export default function Login({ status }) {
                     background: linear-gradient(90deg, transparent, rgba(74, 222, 128, 0.4), transparent);
                     border-radius: 100px;
                 }
+
+                @media (max-width: 520px) {
+                    .card {
+                        padding: 2rem 1.35rem 2.15rem;
+                        border-radius: 22px;
+                    }
+
+                    .logo-box {
+                        width: 84px;
+                        height: 84px;
+                    }
+
+                    .logo-name {
+                        font-size: 1.35rem;
+                    }
+
+                    .heading {
+                        font-size: 1.7rem;
+                    }
+
+                    .subheading {
+                        font-size: 0.9rem;
+                    }
+                }
             `}</style>
 
             <div className="page">
@@ -335,7 +363,7 @@ export default function Login({ status }) {
 
                     <div className="logo-wrap">
                         <div className="logo-box">
-                            <span className="logo-letters">TG</span>
+                            <img src="/icons/android-icon-192x192.png" alt="TG Volquetes" />
                         </div>
                         <div className="logo-text">
                             <span className="logo-name">TG Volquetes</span>
@@ -411,8 +439,6 @@ export default function Login({ status }) {
                             {processing && <span className="spinner" />}
                             {processing ? 'Ingresando...' : 'Ingresar al sistema'}
                         </button>
-
-
                     </form>
 
                     <div className="badge">
