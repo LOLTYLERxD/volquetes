@@ -31,11 +31,11 @@ Route::middleware(['auth'])->prefix('api')->group(function () {
     Route::post('/volquetes/{volquete}/retirar', [AlquilerVolqueteController::class, 'retirar']);
     Route::post('/volquetes/{volquete}/trasladar', [AlquilerVolqueteController::class, 'trasladar']);
     Route::patch('/volquetes/{volquete}/nota', [AlquilerVolqueteController::class, 'actualizarNota']);
+    Route::post('/volquetes/{volquete}/reemplazar', [AlquilerVolqueteController::class, 'reemplazar']);
 
     Route::middleware('role:jefe')->group(function () {
         Route::post('/volquetes', [AlquilerVolqueteController::class, 'crearVolquete']);
         Route::delete('/volquetes/{volquete}', [AlquilerVolqueteController::class, 'destroy']);
-        Route::post('/volquetes/{volquete}/reemplazar', [AlquilerVolqueteController::class, 'reemplazar']);
         Route::get('/volquetes/{volquete}/stats', [AlquilerVolqueteController::class, 'stats']);
         Route::get('/volquetes/{volquete}/alquileres', [AlquilerVolqueteController::class, 'alquileres']);
         Route::get('/dashboard/stats', DashboardStatsController::class);

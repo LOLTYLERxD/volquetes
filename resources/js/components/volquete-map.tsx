@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback, useMemo } from "react";
+import { useEffect, useRef, useCallback, useMemo, useState } from "react";
 import type { Volquete } from "@/lib/volquetes";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -32,7 +32,6 @@ function getVisualState(v: Volquete): { state: VisualState; daysInRent: number |
     return { state: "libre", daysInRent: null };
   }
 
-  // Vencido: solo privados con fechaColocacion >= 7 días
   if (v.esPrivado !== false && v.fechaColocacion) {
     const days = daysBetween(v.fechaColocacion);
     if (typeof days === "number" && days >= 7) {
@@ -42,12 +41,10 @@ function getVisualState(v: Volquete): { state: VisualState; daysInRent: number |
     return { state: "colocado_privado", daysInRent };
   }
 
-  // Municipal (esPrivado === false)
   if (v.esPrivado === false) {
     return { state: "colocado_municipal", daysInRent: null };
   }
 
-  // Privado sin fechaColocacion
   return { state: "colocado_privado", daysInRent: null };
 }
 
@@ -110,6 +107,10 @@ export default function VolqueteMap({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.LayerGroup | null>(null);
+  const darkLayerRef = useRef<L.TileLayer | null>(null);
+  const lightLayerRef = useRef<L.TileLayer | null>(null);
+
+  const [mapTheme, setMapTheme] = useState<"dark" | "light">("dark");
 
   const handleMapClick = useCallback(
     (e: L.LeafletMouseEvent) => {
@@ -129,12 +130,30 @@ export default function VolqueteMap({
       zoomControl: false,
     });
 
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
-      subdomains: "abcd",
-      maxZoom: 20,
-    }).addTo(map);
+    const darkLayer = L.tileLayer(
+      "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+      {
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        subdomains: "abcd",
+        maxZoom: 20,
+      }
+    );
+
+    const lightLayer = L.tileLayer(
+      "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+      {
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        subdomains: "abcd",
+        maxZoom: 20,
+      }
+    );
+
+    darkLayer.addTo(map);
+
+    darkLayerRef.current = darkLayer;
+    lightLayerRef.current = lightLayer;
 
     L.control.zoom({ position: "bottomright" }).addTo(map);
 
@@ -144,14 +163,34 @@ export default function VolqueteMap({
     return () => {
       map.remove();
       mapRef.current = null;
+      darkLayerRef.current = null;
+      lightLayerRef.current = null;
     };
   }, []);
 
   useEffect(() => {
     const map = mapRef.current;
+    const darkLayer = darkLayerRef.current;
+    const lightLayer = lightLayerRef.current;
+
+    if (!map || !darkLayer || !lightLayer) return;
+
+    if (mapTheme === "dark") {
+      if (map.hasLayer(lightLayer)) map.removeLayer(lightLayer);
+      if (!map.hasLayer(darkLayer)) darkLayer.addTo(map);
+    } else {
+      if (map.hasLayer(darkLayer)) map.removeLayer(darkLayer);
+      if (!map.hasLayer(lightLayer)) lightLayer.addTo(map);
+    }
+  }, [mapTheme]);
+
+  useEffect(() => {
+    const map = mapRef.current;
     if (!map) return;
     map.on("click", handleMapClick);
-    return () => { map.off("click", handleMapClick); };
+    return () => {
+      map.off("click", handleMapClick);
+    };
   }, [handleMapClick]);
 
   useEffect(() => {
@@ -174,12 +213,17 @@ export default function VolqueteMap({
       });
 
       const color = VISUAL_COLORS[state];
+      const popupBg = mapTheme === "dark" ? "#0f1117" : "#ffffff";
+      const popupBorder = mapTheme === "dark" ? "#2a2d3a" : "#d1d5db";
+      const popupText = mapTheme === "dark" ? "#e8ecf8" : "#111827";
+      const popupMuted = mapTheme === "dark" ? "#9ba3c0" : "#4b5563";
+      const popupSubtle = mapTheme === "dark" ? "#1e2130" : "#e5e7eb";
 
       const popupContent = `
         <div style="
           font-family: 'DM Sans', system-ui, sans-serif;
           min-width: 210px;
-          background: #0f1117;
+          background: ${popupBg};
           border-radius: 10px;
           padding: 14px 16px;
         ">
@@ -191,7 +235,7 @@ export default function VolqueteMap({
               font-size:14px;
             ">🚛</div>
             <div>
-              <div style="font-weight:700; font-size:14px; color:#e8ecf8; line-height:1.2;">${v.nombre}</div>
+              <div style="font-weight:700; font-size:14px; color:${popupText}; line-height:1.2;">${v.nombre}</div>
               <div style="font-size:11px; color:${color}; font-weight:600; letter-spacing:0.04em;">${VISUAL_LABELS[state]}</div>
             </div>
             ${
@@ -201,20 +245,20 @@ export default function VolqueteMap({
             }
           </div>
 
-          <div style="border-top:1px solid #1e2130; padding-top:8px; display:flex; flex-direction:column; gap:4px;">
+          <div style="border-top:1px solid ${popupSubtle}; padding-top:8px; display:flex; flex-direction:column; gap:4px;">
             ${
               v.direccion
                 ? `<div style="display:flex; gap:6px; align-items:flex-start;">
-              <span style="color:#4a4f6a; font-size:11px; margin-top:1px;">📍</span>
-              <span style="font-size:12px; color:#9ba3c0; line-height:1.4;">${v.direccion}</span>
+              <span style="color:${popupMuted}; font-size:11px; margin-top:1px;">📍</span>
+              <span style="font-size:12px; color:${popupMuted}; line-height:1.4;">${v.direccion}</span>
             </div>`
                 : ""
             }
             ${
               v.cliente
                 ? `<div style="display:flex; gap:6px; align-items:center;">
-              <span style="color:#4a4f6a; font-size:11px;">👤</span>
-              <span style="font-size:12px; color:#9ba3c0;">${v.cliente}</span>
+              <span style="color:${popupMuted}; font-size:11px;">👤</span>
+              <span style="font-size:12px; color:${popupMuted};">${v.cliente}</span>
             </div>`
                 : ""
             }
@@ -223,7 +267,7 @@ export default function VolqueteMap({
       `;
 
       marker.bindPopup(popupContent, {
-        className: "volquete-popup-dark",
+        className: mapTheme === "dark" ? "volquete-popup-dark" : "volquete-popup-light",
         closeButton: false,
         maxWidth: 260,
       });
@@ -231,11 +275,13 @@ export default function VolqueteMap({
       marker.on("click", () => onSelectVolquete(v));
       markersRef.current!.addLayer(marker);
     });
-  }, [volquetes, selectedVolquete, onSelectVolquete]);
+  }, [volquetes, selectedVolquete, onSelectVolquete, mapTheme]);
 
   useEffect(() => {
     if (selectedVolquete && mapRef.current) {
-      mapRef.current.flyTo([selectedVolquete.lat, selectedVolquete.lng], 16, { duration: 0.7 });
+      mapRef.current.flyTo([selectedVolquete.lat, selectedVolquete.lng], 16, {
+        duration: 0.7,
+      });
     }
   }, [selectedVolquete]);
 
@@ -246,7 +292,10 @@ export default function VolqueteMap({
         acc[state]++;
         return acc;
       },
-      { libre: 0, colocado_privado: 0, colocado_municipal: 0, vencido: 0 } as Record<VisualState, number>
+      { libre: 0, colocado_privado: 0, colocado_municipal: 0, vencido: 0 } as Record<
+        VisualState,
+        number
+      >
     );
   }, [statsVolquetes]);
 
@@ -263,11 +312,21 @@ export default function VolqueteMap({
           padding: 0 !important;
         }
 
-        .volquete-popup-dark .leaflet-popup-content {
+        .volquete-popup-light .leaflet-popup-content-wrapper {
+          background: #ffffff !important;
+          border: 1px solid #d1d5db !important;
+          border-radius: 12px !important;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.18) !important;
+          padding: 0 !important;
+        }
+
+        .volquete-popup-dark .leaflet-popup-content,
+        .volquete-popup-light .leaflet-popup-content {
           margin: 0 !important;
         }
 
-        .volquete-popup-dark .leaflet-popup-tip-container {
+        .volquete-popup-dark .leaflet-popup-tip-container,
+        .volquete-popup-light .leaflet-popup-tip-container {
           display: none !important;
         }
 
@@ -291,15 +350,53 @@ export default function VolqueteMap({
       <div className="relative h-full w-full">
         <div ref={mapContainerRef} className="h-full w-full" />
 
-        {/* Leyenda */}
+        <button
+          onClick={() => setMapTheme((prev) => (prev === "dark" ? "light" : "dark"))}
+          style={{
+            position: "absolute",
+            top: 16,
+            right: 16,
+            zIndex: 1000,
+            background: mapTheme === "dark" ? "#0f1117ee" : "#ffffffee",
+            color: mapTheme === "dark" ? "#e8ecf8" : "#111827",
+            border: `1px solid ${mapTheme === "dark" ? "#2a2d3a" : "#d1d5db"}`,
+            borderRadius: 10,
+            padding: "10px 14px",
+            backdropFilter: "blur(10px)",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 12,
+            fontWeight: 700,
+            fontFamily: "'DM Sans', system-ui, sans-serif",
+            cursor: "pointer",
+            boxShadow:
+              mapTheme === "dark"
+                ? "0 8px 24px rgba(0,0,0,0.35)"
+                : "0 8px 24px rgba(0,0,0,0.12)",
+          }}
+        >
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              background: mapTheme === "dark" ? "#eab308" : "#4f7cff",
+              boxShadow: `0 0 8px ${mapTheme === "dark" ? "#eab308" : "#4f7cff"}80`,
+              flexShrink: 0,
+            }}
+          />
+          {mapTheme === "dark" ? "Fondo blanco" : "Fondo oscuro"}
+        </button>
+
         <div
           style={{
             position: "absolute",
             bottom: 24,
             left: 16,
             zIndex: 1000,
-            background: "#0f1117ee",
-            border: "1px solid #2a2d3a",
+            background: mapTheme === "dark" ? "#0f1117ee" : "#ffffffee",
+            border: `1px solid ${mapTheme === "dark" ? "#2a2d3a" : "#d1d5db"}`,
             borderRadius: 12,
             padding: "10px 14px",
             backdropFilter: "blur(10px)",
@@ -307,36 +404,48 @@ export default function VolqueteMap({
             flexDirection: "column",
             gap: 6,
             fontFamily: "'DM Sans', system-ui, sans-serif",
+            boxShadow:
+              mapTheme === "dark"
+                ? "0 8px 24px rgba(0,0,0,0.32)"
+                : "0 8px 24px rgba(0,0,0,0.12)",
           }}
         >
-          {(["colocado_municipal", "colocado_privado", "libre", "vencido"] as VisualState[]).map((s) => (
-            <div key={s} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  background: VISUAL_COLORS[s],
-                  boxShadow: `0 0 6px ${VISUAL_COLORS[s]}80`,
-                  flexShrink: 0,
-                }}
-              />
-              <span style={{ fontSize: 12, color: "#9ba3c0", minWidth: 150 }}>
-                {VISUAL_LABELS[s]}
-              </span>
-              <span
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: VISUAL_COLORS[s],
-                  fontFamily: "monospace",
-                  marginLeft: "auto",
-                }}
-              >
-                {counts[s]}
-              </span>
-            </div>
-          ))}
+          {(["colocado_municipal", "colocado_privado", "libre", "vencido"] as VisualState[]).map(
+            (s) => (
+              <div key={s} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    background: VISUAL_COLORS[s],
+                    boxShadow: `0 0 6px ${VISUAL_COLORS[s]}80`,
+                    flexShrink: 0,
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: 12,
+                    color: mapTheme === "dark" ? "#9ba3c0" : "#4b5563",
+                    minWidth: 150,
+                  }}
+                >
+                  {VISUAL_LABELS[s]}
+                </span>
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: VISUAL_COLORS[s],
+                    fontFamily: "monospace",
+                    marginLeft: "auto",
+                  }}
+                >
+                  {counts[s]}
+                </span>
+              </div>
+            )
+          )}
         </div>
 
         {isAddingMode && (
@@ -352,7 +461,7 @@ export default function VolqueteMap({
           >
             <div
               style={{
-                background: "#0f1117ee",
+                background: mapTheme === "dark" ? "#0f1117ee" : "#ffffffee",
                 border: "1px solid #4f7cff50",
                 borderRadius: 10,
                 padding: "10px 18px",
@@ -378,7 +487,7 @@ export default function VolqueteMap({
                 style={{
                   fontSize: 13,
                   fontWeight: 600,
-                  color: "#a0b4ff",
+                  color: "#4f7cff",
                   fontFamily: "'DM Sans', system-ui, sans-serif",
                   whiteSpace: "nowrap",
                 }}

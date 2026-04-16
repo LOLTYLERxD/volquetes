@@ -366,14 +366,9 @@ export default function Login({ status }) {
                             <img src="/icons/android-icon-192x192.png" alt="TG Volquetes" />
                         </div>
                         <div className="logo-text">
-                            <span className="logo-name">TG Volquetes</span>
+                            <span className="logo-name">T.G Volquetes</span>
                             <span className="logo-sub">Panel de gestión</span>
                         </div>
-                    </div>
-
-                    <div className="heading-wrap">
-                        <h1 className="heading">Iniciar sesión</h1>
-                        <p className="subheading">Ingresá tus credenciales para continuar</p>
                     </div>
 
                     {status && <div className="status-bar">{status}</div>}

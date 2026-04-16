@@ -43,7 +43,7 @@ export default function VolqueteList({
       (v.cliente || "").toLowerCase().includes(q);
 
     const esPrivado = v.esPrivado !== false;
-    const vencido = esPrivado && estaVencido(v.fechaColocacion, 7);
+    const vencido = esPrivado && v.colocado && estaVencido(v.fechaColocacion, 7);
 
     const matchFilter =
       filterStatus === "all" ||
@@ -59,8 +59,7 @@ export default function VolqueteList({
   const counts = volquetes.reduce(
     (acc, v) => {
       const esPrivado = v.esPrivado !== false;
-      const vencido = esPrivado && estaVencido(v.fechaColocacion, 7);
-      acc.all++;
+      const vencido = esPrivado && v.colocado && estaVencido(v.fechaColocacion, 7);      acc.all++;
       if (esPrivado)  acc.privados++;
       if (!esPrivado) acc.municipales++;
       if (!v.colocado) acc.libres++;

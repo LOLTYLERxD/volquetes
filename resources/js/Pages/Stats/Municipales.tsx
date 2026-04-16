@@ -257,13 +257,6 @@ export default function Municipales() {
               </div>
             </div>
 
-            {/* ── Más tiempo colocados ── */}
-            <div className="print-surface print-no-break" style={{ background: DARK.surface, border: `1px solid ${DARK.border}`, borderRadius: 10, padding: "20px 20px 10px" }}>
-              <div className="print-muted" style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: DARK.muted, marginBottom: 12 }}>Volquetes con más días colocados actualmente</div>
-              {data.charts.mastiempoColocados.labels.length > 0
-                ? <Chart options={barOpts(data.charts.mastiempoColocados.labels, false) as any} series={[{ name: "Días colocado", data: data.charts.mastiempoColocados.values }] as any} type="bar" height={200} />
-                : <div style={{ height: 120, display: "flex", alignItems: "center", justifyContent: "center", color: DARK.muted, fontSize: 12 }}>Ningún municipal colocado</div>}
-            </div>
 
             {/* ── Tablas: últimos movimientos + colocados ── */}
             <div className="print-grid-2col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
@@ -302,13 +295,6 @@ export default function Municipales() {
                 <div className="print-muted" style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: DARK.muted, marginBottom: 14 }}>Municipales colocados actualmente</div>
                 <div style={{ overflowX: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                    <thead>
-                      <tr className="print-muted" style={{ color: DARK.muted }}>
-                        {["Volquete", "Dirección", "Cliente", "Días"].map(h => (
-                          <th key={h} style={{ textAlign: "left", padding: "6px 8px 10px", fontWeight: 600, fontSize: 11 }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
                     <tbody>
                       {data.tables.municipalesColocados.map((v) => (
                         <tr key={v.id} style={{ borderTop: `1px solid ${DARK.border}` }}>

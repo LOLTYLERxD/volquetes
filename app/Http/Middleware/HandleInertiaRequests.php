@@ -9,11 +9,10 @@ class HandleInertiaRequests extends Middleware
 {
     protected $rootView = 'app';
 
-    public function version(Request $request): ?string
-    {
-        return parent::version($request);
-    }
-
+public function version(Request $request): ?string
+{
+    return '1.0';
+}
     public function share(Request $request): array
     {
         return [

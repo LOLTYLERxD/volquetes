@@ -57,5 +57,5 @@ export function calcularDias(fechaColocacion?: string | null): number {
 
 export function estaVencido(fechaColocacion?: string | null, limiteDias: number = 7): boolean {
   if (!fechaColocacion) return false;
-  return calcularDias(fechaColocacion) > limiteDias;
+  return calcularDias(fechaColocacion) >= limiteDias;
 }
