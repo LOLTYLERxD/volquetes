@@ -9,6 +9,8 @@ import {
   trasladarVolquete,
   reemplazarVolquete,
   retirarVolquete,
+  fetchPrecioVolquete,
+  updatePrecioVolquete,
 } from "@/lib/api";
 
 import VolqueteList from "@/components/volquete-list";
@@ -36,7 +38,10 @@ export default function Home() {
   const [volquetes, setVolquetes] = useState<Volquete[]>([]);
   const [selectedVolquete, setSelectedVolquete] = useState<Volquete | null>(null);
   const [rightPanel, setRightPanel] = useState<RightPanel>("none");
-
+const handleUpdateVolquete = useCallback((actualizado: Volquete) => {
+  setVolquetes((prev) => prev.map((v) => v.id === actualizado.id ? actualizado : v));
+  setSelectedVolquete(actualizado);
+}, []);
   const [isAddingMode, setIsAddingMode] = useState(false);
   const [addingCoords, setAddingCoords] = useState<{ lat: number; lng: number; direccion?: string } | null>(null);
   const [isGeocodingAddress, setIsGeocodingAddress] = useState(false);
@@ -317,73 +322,58 @@ export default function Home() {
     }
   }, [rightPanel]);
 
-  const abrirModalPrecio = useCallback(async () => {
-    setPrecioModalOpen(true);
-    setCargandoPrecio(true);
+const abrirModalPrecio = useCallback(async () => {
+  setPrecioModalOpen(true);
+  setCargandoPrecio(true);
 
-    try {
-      const res = await fetch("/api/config/precio-volquete");
-      const data = await res.json();
-      setPrecioVolquete(String(data?.valor ?? ""));
-    } catch {
-      toast({
-        title: "Error",
-        description: "No se pudo cargar el precio actual",
-        variant: "destructive",
-      });
-      setPrecioVolquete("");
-    } finally {
-      setCargandoPrecio(false);
-    }
-  }, []);
+  try {
+    const valor = await fetchPrecioVolquete();
+    setPrecioVolquete(String(valor));
+  } catch {
+    toast({
+      title: "Error",
+      description: "No se pudo cargar el precio actual",
+      variant: "destructive",
+    });
+    setPrecioVolquete("");
+  } finally {
+    setCargandoPrecio(false);
+  }
+}, []);
 
-  const guardarPrecioVolquete = useCallback(async () => {
-    const valor = Number(precioVolquete);
+const guardarPrecioVolquete = useCallback(async () => {
+  const valor = Number(precioVolquete);
 
-    if (!precioVolquete.trim() || Number.isNaN(valor) || valor < 0) {
-      toast({
-        title: "Precio inválido",
-        description: "Ingresá un valor válido mayor o igual a 0",
-        variant: "destructive",
-      });
-      return;
-    }
+  if (!precioVolquete.trim() || Number.isNaN(valor) || valor < 0) {
+    toast({
+      title: "Precio inválido",
+      description: "Ingresá un valor válido mayor o igual a 0",
+      variant: "destructive",
+    });
+    return;
+  }
 
-    setGuardandoPrecio(true);
+  setGuardandoPrecio(true);
 
-    try {
-const csrf = document
-  .querySelector('meta[name="csrf-token"]')
-  ?.getAttribute("content");
+  try {
+    await updatePrecioVolquete(valor);
 
-const res = await fetch("/api/config/precio-volquete", {
-  method: "PUT",
-  headers: {
-    "Content-Type": "application/json",
-    "X-CSRF-TOKEN": csrf ?? "",
-    "X-Requested-With": "XMLHttpRequest",
-    "Accept": "application/json",
-  },
-  body: JSON.stringify({ valor }),
-});
-      if (!res.ok) throw new Error();
+    toast({
+      title: "✅ Precio actualizado",
+      description: `Nuevo precio: $${valor.toLocaleString("es-AR")}`,
+    });
 
-      toast({
-        title: "✅ Precio actualizado",
-        description: `Nuevo precio: $${valor.toLocaleString("es-AR")}`,
-      });
-
-      setPrecioModalOpen(false);
-    } catch {
-      toast({
-        title: "Error",
-        description: "No se pudo guardar el precio",
-        variant: "destructive",
-      });
-    } finally {
-      setGuardandoPrecio(false);
-    }
-  }, [precioVolquete]);
+    setPrecioModalOpen(false);
+  } catch {
+    toast({
+      title: "Error",
+      description: "No se pudo guardar el precio",
+      variant: "destructive",
+    });
+  } finally {
+    setGuardandoPrecio(false);
+  }
+}, [precioVolquete]);
 
   const filteredVolquetes = volquetes.filter((v) => {
     const q = searchQuery.trim().toLowerCase();
@@ -1054,43 +1044,48 @@ const res = await fetch("/api/config/precio-volquete", {
             }}
           >
             {rightPanel === "detail" && selectedVolquete && (
-              <VolqueteSidebar
-                volquete={selectedVolquete}
-                onClose={() => setRightPanel("none")}
-                onDelete={() => handleDeleteVolquete(selectedVolquete.id)}
-                onColocar={handleColocar}
-                onRetirar={handleRetirar}
-                onReemplazar={handleReemplazar}
-              />
+<VolqueteSidebar
+  volquete={selectedVolquete}
+  onUpdate={handleUpdateVolquete} 
+onClose={() => setRightPanel("none")}
+  onDelete={() => handleDeleteVolquete(selectedVolquete.id)}
+  onColocar={handleColocar}
+  onRetirar={handleRetirar}
+  onReemplazar={handleReemplazar}
+/>
             )}
             {rightPanel === "stats" && <StatsPanel volquetes={volquetes} onClose={() => setRightPanel("none")} />}
           </aside>
         )}
 
-        {!isDesktop && mobileDetailOpen && selectedVolquete && (
-          <div
-            style={{
-              position: "fixed",
-              top: 56,
-              left: 0,
-              right: 0,
-              bottom: "calc(56px + env(safe-area-inset-bottom))",
-              zIndex: 9999,
-              background: "#0f1117f5",
-              backdropFilter: "blur(6px)",
-              overflow: "hidden",
-            }}
-          >
-            <VolqueteSidebar
-              volquete={selectedVolquete}
-              onClose={() => setMobileDetailOpen(false)}
-              onDelete={() => handleDeleteVolquete(selectedVolquete.id)}
-              onColocar={handleColocar}
-              onRetirar={handleRetirar}
-              onReemplazar={handleReemplazar}
-            />
-          </div>
-        )}
+       {!isDesktop && mobileDetailOpen && selectedVolquete && (
+  <div
+    style={{
+      position: "fixed",
+      top: 56,
+      left: 0,
+      right: 0,
+      bottom: "calc(56px + env(safe-area-inset-bottom))",
+      zIndex: 9999,
+      background: "#0f1117f5",
+      backdropFilter: "blur(6px)",
+      overflow: "hidden",
+    }}
+  >
+    <VolqueteSidebar
+      volquete={selectedVolquete}
+      onUpdate={handleUpdateVolquete}
+      onClose={() => {
+        setMobileDetailOpen(false);
+        setRightPanel("none");
+      }}
+      onDelete={() => handleDeleteVolquete(selectedVolquete.id)}
+      onColocar={handleColocar}
+      onRetirar={handleRetirar}
+      onReemplazar={handleReemplazar}
+    />
+  </div>
+)}
 
         {addingCoords && (
           <AddVolqueteModal

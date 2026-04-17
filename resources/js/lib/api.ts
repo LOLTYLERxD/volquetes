@@ -9,16 +9,8 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// Inyectar CSRF token automáticamente
-api.interceptors.request.use((config) => {
-  const token = document.head.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content;
-  if (token) config.headers["X-CSRF-TOKEN"] = token;
-  return config;
-});
-
 export async function fetchVolquetes(): Promise<Volquete[]> {
   const res = await api.get("/volquetes");
-  // Normalizar IDs a string para evitar keys duplicadas en React
   return res.data.map((v: any) => ({ ...v, id: String(v.id) }));
 }
 
@@ -109,11 +101,22 @@ export async function reemplazarVolquete(
   const res = await api.post(`/volquetes/${id}/reemplazar`, data);
   return { ...res.data, id: String(res.data.id) };
 }
-
+export async function fetchVolquete(id: string): Promise<Volquete> {
+  const res = await api.get(`/volquetes/${id}`);
+  return { ...res.data, id: String(res.data.id) };
+}
 export async function actualizarNota(
   id: string,
   nota: string
 ): Promise<Volquete> {
   const res = await api.patch(`/volquetes/${id}/nota`, { nota });
   return { ...res.data, id: String(res.data.id) };
+}
+export async function fetchPrecioVolquete(): Promise<number> {
+  const res = await api.get("/config/precio-volquete");
+  return Number(res.data?.valor ?? 0);
+}
+
+export async function updatePrecioVolquete(valor: number): Promise<void> {
+  await api.put("/config/precio-volquete", { valor });
 }

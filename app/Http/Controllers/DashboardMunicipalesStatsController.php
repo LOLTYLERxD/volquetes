@@ -101,25 +101,25 @@ class DashboardMunicipalesStatsController extends Controller
             ]);
 
         // Últimos movimientos
-        $ultimosMovs = Movimiento::whereIn('volquete_id', $municipalesIds)
-            ->orderByDesc('fecha')
-            ->take(10)
-            ->get()
-            ->map(fn($m) => [
-                'id' => $m->id,
-                'fecha' => $m->fecha,
-                'tipo' => $m->tipo,
-                'volquete' => Volquete::find($m->volquete_id)?->nombre ?? $m->volquete_id,
-                'ubicacion_nueva' => $m->ubicacion_nueva,
-                'nota' => $m->nota,
-            ]);
+$ultimosMovs = Movimiento::whereIn('volquete_id', $municipalesIds)
+    ->orderByDesc('created_at')
+    ->orderByDesc('id')
+    ->take(10)
+    ->get()
+    ->map(fn($m) => [
+        'id' => $m->id,
+        'fecha' => $m->fecha,
+        'tipo' => $m->tipo,
+        'volquete' => Volquete::find($m->volquete_id)?->nombre ?? $m->volquete_id,
+        'ubicacion_nueva' => $m->ubicacion_nueva,
+        'nota' => $m->nota,
+    ]);
 
         // Municipales colocados actualmente
         $municipalesColocados = (clone $municipalesQuery)
             ->whereNotNull('direccion')
             ->where('direccion', '!=', '')
             ->orderBy('fecha_colocacion', 'asc')
-            ->take(10)
             ->get()
             ->map(fn($v) => [
                 'id' => $v->id,

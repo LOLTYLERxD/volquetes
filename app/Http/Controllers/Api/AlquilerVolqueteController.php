@@ -147,6 +147,10 @@ class AlquilerVolqueteController extends Controller
             'nota' => ['nullable', 'string', 'max:500'],
         ]);
 
+        $fechaOperacion = isset($data['fecha'])
+            ? Carbon::parse($data['fecha'])->toDateString()
+            : now()->toDateString();
+
         if (!$volquete->es_privado) {
             $prevDireccion = $volquete->direccion;
             $prevLat = $volquete->lat;
@@ -154,7 +158,7 @@ class AlquilerVolqueteController extends Controller
 
             Movimiento::create([
                 'volquete_id' => $volquete->id,
-                'fecha' => now()->toDateString(),
+                'fecha' => $fechaOperacion,
                 'tipo' => 'traslado',
                 'ubicacion_anterior' => $prevDireccion,
                 'ubicacion_nueva' => $data['direccion'],
@@ -166,9 +170,12 @@ class AlquilerVolqueteController extends Controller
             ]);
 
             $volquete->update([
+                'estado' => 'ocupado',
                 'direccion' => $data['direccion'],
+                'cliente' => $data['cliente'] ?? $volquete->cliente,
                 'lat' => $data['lat'],
                 'lng' => $data['lng'],
+                'fecha_colocacion' => $fechaOperacion,
             ]);
 
             return response()->json($this->dto($volquete->fresh()->load('alquilerActual')));
@@ -181,13 +188,9 @@ class AlquilerVolqueteController extends Controller
             ], 409);
         }
 
-        $fechaColoc = isset($data['fecha'])
-            ? Carbon::parse($data['fecha'])->toDateString()
-            : now()->toDateString();
-
         $alquiler = Alquiler::create([
             'volquete_id' => $volquete->id,
-            'fecha_colocacion' => $fechaColoc,
+            'fecha_colocacion' => $fechaOperacion,
             'fecha_retiro' => null,
             'direccion' => $data['direccion'],
             'cliente' => $data['cliente'] ?? null,
@@ -199,6 +202,7 @@ class AlquilerVolqueteController extends Controller
         ]);
 
         $volquete->update([
+            'estado' => 'ocupado',
             'direccion' => $alquiler->direccion,
             'cliente' => $alquiler->cliente,
             'lat' => $alquiler->lat,
@@ -302,10 +306,21 @@ class AlquilerVolqueteController extends Controller
             }
         }
 
-        $updates = [];
-        if ($direccion !== null) $updates['direccion'] = $direccion;
-        if ($lat !== null) $updates['lat'] = $lat;
-        if ($lng !== null) $updates['lng'] = $lng;
+        $updates = [
+            'estado' => 'ocupado',
+        ];
+
+        if ($direccion !== null) {
+            $updates['direccion'] = $direccion;
+        }
+
+        if ($lat !== null) {
+            $updates['lat'] = $lat;
+        }
+
+        if ($lng !== null) {
+            $updates['lng'] = $lng;
+        }
 
         if (!$volquete->es_privado) {
             $updates['fecha_colocacion'] = now()->toDateString();
@@ -339,8 +354,12 @@ class AlquilerVolqueteController extends Controller
             ], 409);
         }
 
+        $fechaRetiro = isset($data['fecha'])
+            ? Carbon::parse($data['fecha'])->toDateString()
+            : now()->toDateString();
+
         $alquiler->update([
-            'fecha_retiro' => isset($data['fecha']) ? Carbon::parse($data['fecha'])->toDateString() : now()->toDateString(),
+            'fecha_retiro' => $fechaRetiro,
             'nota' => $data['nota'] ?? $alquiler->nota,
         ]);
 
@@ -386,6 +405,15 @@ class AlquilerVolqueteController extends Controller
             ]
         );
 
+        $volquete->update([
+            'estado' => 'disponible',
+            'direccion' => null,
+            'cliente' => null,
+            'lat' => null,
+            'lng' => null,
+            'fecha_colocacion' => null,
+        ]);
+
         return response()->json($this->dto($volquete->fresh()->load('alquilerActual')));
     }
 
@@ -423,6 +451,7 @@ class AlquilerVolqueteController extends Controller
             'id' => $v->id,
             'nombre' => $v->nombre,
             'esPrivado' => (bool) $v->es_privado,
+            'estado' => $v->estado,
             'movimientosTotal' => $movimientosTotal,
             'trasladosTotal' => $trasladosTotal,
             'reemplazosTotal' => $reemplazosTotal,
@@ -431,8 +460,8 @@ class AlquilerVolqueteController extends Controller
             'fechaColocacion' => $a
                 ? optional($a->fecha_colocacion)->format('Y-m-d')
                 : optional($v->fecha_colocacion)->format('Y-m-d'),
-            'lat' => $a ? (float) $a->lat : (float) $v->lat,
-            'lng' => $a ? (float) $a->lng : (float) $v->lng,
+            'lat' => $a ? (float) $a->lat : ($v->lat !== null ? (float) $v->lat : null),
+            'lng' => $a ? (float) $a->lng : ($v->lng !== null ? (float) $v->lng : null),
             'direccion' => $a ? $a->direccion : ($v->direccion ?? null),
             'cliente' => $a ? $a->cliente : ($v->cliente ?? null),
             'alquilerActual' => $a ? [
@@ -463,18 +492,20 @@ class AlquilerVolqueteController extends Controller
         ]);
 
         $esPrivado = (bool) ($data['esPrivado'] ?? true);
+        $tieneUbicacion = !empty($data['direccion']);
 
         $volquete = Volquete::create([
             'nombre' => $data['nombre'],
+            'estado' => $tieneUbicacion ? 'ocupado' : 'disponible',
             'lat' => $data['lat'] ?? null,
             'lng' => $data['lng'] ?? null,
             'direccion' => $data['direccion'] ?? null,
             'cliente' => $esPrivado ? ($data['cliente'] ?? null) : null,
-            'fecha_colocacion' => $esPrivado ? null : now()->toDateString(),
+            'fecha_colocacion' => $tieneUbicacion ? now()->toDateString() : null,
             'es_privado' => $esPrivado,
         ]);
 
-        if (!$esPrivado) {
+        if (!$esPrivado && $tieneUbicacion) {
             Movimiento::create([
                 'volquete_id' => $volquete->id,
                 'fecha' => now()->toDateString(),

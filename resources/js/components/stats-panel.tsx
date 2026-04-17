@@ -66,7 +66,10 @@ function Donut({
       <div className="sp-legend">
         {data.map((d, i) => (
           <div key={i} className="sp-legend-row">
-            <span className="sp-legend-dot" style={{ background: colors[i % colors.length] }} />
+            <span
+              className="sp-legend-dot"
+              style={{ background: colors[i % colors.length] }}
+            />
             <span className="sp-legend-name">{d.name}</span>
             <span className="sp-legend-value">{d.value}</span>
           </div>
@@ -105,45 +108,92 @@ export default function StatsPanel({
 }) {
   const { isJefe } = useAuth();
 
-  const [ingresosHoy, setIngresosHoy] = useState<{ colocacion: number; reemplazo: number; traslado: number; total: number } | null>(null);
+  const [ingresosHoy, setIngresosHoy] = useState<{
+    colocacion: number;
+    reemplazo: number;
+    traslado: number;
+    total: number;
+  } | null>(null);
   const [loadingIngresos, setLoadingIngresos] = useState(false);
 
   useEffect(() => {
     if (!isJefe) return;
+
     setLoadingIngresos(true);
+
     fetch("/api/dashboard/stats?days=1")
       .then((r) => r.json())
       .then((data) => {
         const labels: string[] = data?.charts?.conceptoDinero?.labels ?? [];
         const values: number[] = data?.charts?.conceptoDinero?.values ?? [];
+
         const get = (key: string) => {
           const i = labels.findIndex((l) => l.toLowerCase().includes(key));
           return i >= 0 ? (values[i] ?? 0) : 0;
         };
+
         const colocacion = get("coloc");
         const reemplazo = get("reempl");
         const traslado = get("traslad");
-        setIngresosHoy({ colocacion, reemplazo, traslado, total: colocacion + reemplazo + traslado });
+
+        setIngresosHoy({
+          colocacion,
+          reemplazo,
+          traslado,
+          total: colocacion + reemplazo + traslado,
+        });
       })
-      .catch(() => setIngresosHoy({ colocacion: 0, reemplazo: 0, traslado: 0, total: 0 }))
+      .catch(() =>
+        setIngresosHoy({
+          colocacion: 0,
+          reemplazo: 0,
+          traslado: 0,
+          total: 0,
+        })
+      )
       .finally(() => setLoadingIngresos(false));
   }, [isJefe]);
 
-  const privados = useMemo(() => volquetes.filter((v) => v.esPrivado !== false), [volquetes]);
-  const colocados = useMemo(() => privados.filter((v) => v.colocado), [privados]);
-  const libres = useMemo(() => privados.filter((v) => !v.colocado), [privados]);
+  // ── Privados ──────────────────────────────────────────────────────────────
+  const privados = useMemo(
+    () => volquetes.filter((v) => v.esPrivado !== false),
+    [volquetes]
+  );
+
+  const colocados = useMemo(
+    () => privados.filter((v) => v.colocado),
+    [privados]
+  );
+
+  const libres = useMemo(
+    () => privados.filter((v) => !v.colocado),
+    [privados]
+  );
+
   const vencidos = useMemo(
-    () => privados.filter((v) => v.colocado && v.esPrivado !== false && estaVencido(v.fechaColocacion, 7)),
+    () =>
+      privados.filter(
+        (v) =>
+          v.colocado &&
+          v.esPrivado !== false &&
+          estaVencido(v.fechaColocacion, 7)
+      ),
     [privados]
   );
 
   const promedioDias = useMemo(() => {
     if (!colocados.length) return 0;
-    return Math.round(colocados.reduce((a, v) => a + calcularDias(v.fechaColocacion), 0) / colocados.length);
+    return Math.round(
+      colocados.reduce((a, v) => a + calcularDias(v.fechaColocacion), 0) /
+        colocados.length
+    );
   }, [colocados]);
 
   const ocupacionPct = useMemo(
-    () => (privados.length ? Math.round((colocados.length / privados.length) * 100) : 0),
+    () =>
+      privados.length
+        ? Math.round((colocados.length / privados.length) * 100)
+        : 0,
     [privados.length, colocados.length]
   );
 
@@ -152,6 +202,17 @@ export default function StatsPanel({
     [privados]
   );
 
+  // ── Municipales ───────────────────────────────────────────────────────────
+  const municipales = useMemo(
+    () => volquetes.filter((v) => v.esPrivado === false),
+    [volquetes]
+  );
+
+const reemplazosMunicipales = useMemo(
+  () => municipales.reduce((a, v) => a + Number(v.trasladosTotal ?? 0), 0),
+  [municipales]
+);
+  // ── Charts ────────────────────────────────────────────────────────────────
   const estadoData = useMemo(
     () => [
       { name: "En alquiler", value: colocados.length },
@@ -163,6 +224,7 @@ export default function StatsPanel({
 
   const dineroData = useMemo(() => {
     if (!ingresosHoy) return [];
+
     return [
       { name: "Colocación", value: ingresosHoy.colocacion },
       { name: "Reemplazo", value: ingresosHoy.reemplazo },
@@ -595,7 +657,9 @@ export default function StatsPanel({
             </div>
             <div>
               <div className="sp-header-title">Estadísticas</div>
-              <div className="sp-header-sub">{volquetes.length} volquetes cargados</div>
+              <div className="sp-header-sub">
+                {volquetes.length} volquetes cargados
+              </div>
             </div>
           </div>
 
@@ -627,8 +691,16 @@ export default function StatsPanel({
               ) : (
                 <Donut
                   title="Ingresos del día · ARS"
-                  data={dineroData.length ? dineroData : [{ name: "Sin ingresos", value: 1 }]}
-                  colors={dineroData.length ? ["#a855f7", "#f59e0b", "#06b6d4"] : ["#2e3740"]}
+                  data={
+                    dineroData.length
+                      ? dineroData
+                      : [{ name: "Sin ingresos", value: 1 }]
+                  }
+                  colors={
+                    dineroData.length
+                      ? ["#a855f7", "#f59e0b", "#06b6d4"]
+                      : ["#2e3740"]
+                  }
                   centerText={dineroFmt}
                 />
               ))}
@@ -636,21 +708,55 @@ export default function StatsPanel({
 
           <div className="sp-occ-bar-wrap">
             <div className="sp-occ-bar-header">
-              <span className="sp-occ-bar-label">Ocupación de flota privada</span>
+              <span className="sp-occ-bar-label">
+                Ocupación de flota privada
+              </span>
               <span className="sp-occ-bar-pct">{ocupacionPct}%</span>
             </div>
             <div className="sp-occ-track">
-              <div className="sp-occ-fill" style={{ width: `${ocupacionPct}%` }} />
+              <div
+                className="sp-occ-fill"
+                style={{ width: `${ocupacionPct}%` }}
+              />
             </div>
           </div>
 
           <div className="sp-section-label">Métricas clave</div>
 
           <div className="sp-stat-grid">
-            <StatCard label="Total volquetes" value={volquetes.length} icon={Package} />
+            <StatCard
+              label="Total volquetes"
+              value={volquetes.length}
+              icon={Package}
+            />
             <StatCard label="Privados" value={privados.length} icon={Truck} />
-            <StatCard label="Prom. días colocado" value={promedioDias} icon={Clock} accent />
-            <StatCard label="Reemplazos totales" value={reemplazosTotales} icon={RefreshCw} />
+            <StatCard
+              label="Prom. días colocado"
+              value={promedioDias}
+              icon={Clock}
+              accent
+            />
+            <StatCard
+              label="Reemplazos totales"
+              value={reemplazosTotales}
+              icon={RefreshCw}
+            />
+          </div>
+
+          <div className="sp-section-label">Municipales</div>
+
+          <div className="sp-stat-grid">
+            <StatCard
+              label="Total municipales"
+              value={municipales.length}
+              icon={Truck}
+            />
+            <StatCard
+              label="Reemplazos municipales"
+              value={reemplazosMunicipales}
+              icon={RefreshCw}
+              accent
+            />
           </div>
         </div>
       </div>

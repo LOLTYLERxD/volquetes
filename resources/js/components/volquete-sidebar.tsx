@@ -22,27 +22,28 @@ import { toast } from "@/components/ui/use-toast";
 interface VolqueteSidebarProps {
   volquete: Volquete;
   onClose: () => void;
-  onDelete: () => void;
+  onDelete: () => void | Promise<void>;
+  onUpdate?: (volquete: Volquete) => void;
   onColocar: (data: {
     direccion: string;
     lat: number;
     lng: number;
     cliente?: string;
     nota?: string;
-  }) => void;
-  onRetirar: (data: { nota?: string }) => void;
-  onReemplazar?: (data: { nota?: string }) => void;
+  }) => void | Promise<void>;
+  onRetirar: (data: { nota?: string }) => void | Promise<void>;
+  onReemplazar?: (data: { nota?: string }) => void | Promise<void>;
 }
 
 export default function VolqueteSidebar({
   volquete,
   onClose,
   onDelete,
+  onUpdate,
   onColocar,
   onRetirar,
   onReemplazar,
 }: VolqueteSidebarProps) {
-  // ✅ CAMBIO 1: agregado isEmpleado
   const { isJefe, isEmpleado } = useAuth();
 
   const [nota, setNota] = useState(volquete.alquilerActual?.nota ?? "");
@@ -90,9 +91,8 @@ export default function VolqueteSidebar({
 
   const esPrivado = volquete.esPrivado !== false;
 
-  // ✅ CAMBIO 2: enAlquiler sin restricción de esPrivado (municipales también pueden estar en alquiler)
   const enAlquiler = volquete.colocado;
-  const enAlquilerPrivado = esPrivado && volquete.colocado; // solo para UI específica de privados
+  const enAlquilerPrivado = esPrivado && volquete.colocado;
 
   const statusLabel = !esPrivado
     ? "Público"
@@ -113,7 +113,8 @@ export default function VolqueteSidebar({
 
     setGuardandoNota(true);
     try {
-      await actualizarNota(volquete.id, nota.trim() || "");
+      const actualizado = await actualizarNota(volquete.id, nota.trim() || "");
+      onUpdate?.(actualizado);
       toast({
         title: "✅ Nota guardada",
         description: "La nota fue actualizada correctamente",
@@ -146,37 +147,73 @@ export default function VolqueteSidebar({
     setConfirmAction("colocar");
   }
 
-  function handleConfirmColocar() {
+  async function handleConfirmColocar() {
     const parsedLat = parseFloat(lat);
     const parsedLng = parseFloat(lng);
 
-    onColocar({
-      direccion: direccion.trim(),
-      ...(esPrivado ? { cliente: cliente.trim() || undefined } : {}),
-      lat: parsedLat,
-      lng: parsedLng,
-      nota: nota.trim() || undefined,
-    });
-
-    setNota("");
     setConfirmAction(null);
+
+    try {
+      await onColocar({
+        direccion: direccion.trim(),
+        ...(esPrivado ? { cliente: cliente.trim() || undefined } : {}),
+        lat: parsedLat,
+        lng: parsedLng,
+        nota: nota.trim() || undefined,
+      });
+
+      setNota("");
+    } catch {
+      toast({
+        title: "Error",
+        description: "No se pudo iniciar el alquiler",
+        variant: "destructive",
+      });
+    }
   }
 
-  function handleConfirmReemplazar() {
-    onReemplazar?.({ nota: nota.trim() || undefined });
-    setNota("");
+  async function handleConfirmReemplazar() {
     setConfirmAction(null);
+
+    try {
+      await onReemplazar?.({ nota: nota.trim() || undefined });
+      setNota("");
+    } catch {
+      toast({
+        title: "Error",
+        description: "No se pudo reemplazar el volquete",
+        variant: "destructive",
+      });
+    }
   }
 
-  function handleConfirmRetirar() {
-    onRetirar({ nota: nota.trim() || undefined });
-    setNota("");
+  async function handleConfirmRetirar() {
     setConfirmAction(null);
+
+    try {
+      await onRetirar({ nota: nota.trim() || undefined });
+      setNota("");
+    } catch {
+      toast({
+        title: "Error",
+        description: "No se pudo retirar el volquete",
+        variant: "destructive",
+      });
+    }
   }
 
-  function handleConfirmEliminar() {
+  async function handleConfirmEliminar() {
     setConfirmAction(null);
-    onDelete();
+
+    try {
+      await onDelete();
+    } catch {
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el volquete",
+        variant: "destructive",
+      });
+    }
   }
 
   function renderReadOnlyField(
@@ -490,7 +527,14 @@ export default function VolqueteSidebar({
               padding: "14px 16px",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 12,
+              }}
+            >
               <Calendar size={14} color="#4f7cff" />
               <p className="section-label" style={{ margin: 0 }}>
                 Control de alquiler
@@ -501,7 +545,9 @@ export default function VolqueteSidebar({
               <>
                 <div>
                   <div className="stat-row">
-                    <span style={{ fontSize: 13, color: "#9ba3c0" }}>Colocado</span>
+                    <span style={{ fontSize: 13, color: "#9ba3c0" }}>
+                      Colocado
+                    </span>
                     <span
                       style={{
                         fontSize: 13,
@@ -515,7 +561,9 @@ export default function VolqueteSidebar({
                   </div>
 
                   <div className="stat-row">
-                    <span style={{ fontSize: 13, color: "#9ba3c0" }}>Días activo</span>
+                    <span style={{ fontSize: 13, color: "#9ba3c0" }}>
+                      Días activo
+                    </span>
                     <span
                       style={{
                         fontSize: 14,
@@ -529,7 +577,9 @@ export default function VolqueteSidebar({
                   </div>
 
                   <div className="stat-row">
-                    <span style={{ fontSize: 13, color: "#9ba3c0" }}>Reemplazos</span>
+                    <span style={{ fontSize: 13, color: "#9ba3c0" }}>
+                      Reemplazos
+                    </span>
                     <span
                       style={{
                         fontSize: 13,
@@ -544,7 +594,9 @@ export default function VolqueteSidebar({
 
                   {isJefe && (
                     <div className="stat-row">
-                      <span style={{ fontSize: 13, color: "#9ba3c0" }}>Total facturado</span>
+                      <span style={{ fontSize: 13, color: "#9ba3c0" }}>
+                        Total facturado
+                      </span>
                       <span
                         style={{
                           fontSize: 13,
@@ -573,7 +625,13 @@ export default function VolqueteSidebar({
                     }}
                   >
                     <AlertTriangle size={14} color="#ff6b6b" />
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "#ff6b6b" }}>
+                    <span
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "#ff6b6b",
+                      }}
+                    >
                       Vencido — más de 7 días
                     </span>
                   </div>
@@ -610,74 +668,75 @@ export default function VolqueteSidebar({
               <User size={12} color="#4a4f6a" />
             )}
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div
+            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
+          >
             {renderReadOnlyField("Latitud", lat, null, true)}
             {renderReadOnlyField("Longitud", lng, null, true)}
           </div>
 
-          {/* Nota: solo para privados con alquiler activo */}
-{esPrivado && enAlquilerPrivado && (
-  <div>
-    <label
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 6,
-        marginBottom: 6,
-      }}
-    >
-      <FileText size={12} color="#4a4f6a" />
-      <span className="section-label" style={{ margin: 0 }}>
-        Nota{" "}
-        <span
-          style={{
-            opacity: 0.5,
-            textTransform: "none",
-            letterSpacing: 0,
-            fontSize: 10,
-          }}
-        >
-          (editable)
-        </span>
-      </span>
-    </label>
+          {esPrivado && enAlquilerPrivado && (
+            <div>
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  marginBottom: 6,
+                }}
+              >
+                <FileText size={12} color="#4a4f6a" />
+                <span className="section-label" style={{ margin: 0 }}>
+                  Nota{" "}
+                  <span
+                    style={{
+                      opacity: 0.5,
+                      textTransform: "none",
+                      letterSpacing: 0,
+                      fontSize: 10,
+                    }}
+                  >
+                    (editable)
+                  </span>
+                </span>
+              </label>
 
-    <textarea
-      className="sidebar-textarea"
-      value={nota}
-      onChange={(e) => setNota(e.target.value)}
-      rows={3}
-      placeholder="Observaciones adicionales..."
-    />
+              <textarea
+                className="sidebar-textarea"
+                value={nota}
+                onChange={(e) => setNota(e.target.value)}
+                rows={3}
+                placeholder="Observaciones adicionales..."
+              />
 
-    <button
-      type="button"
-      onClick={handleGuardarNota}
-      disabled={guardandoNota}
-      style={{
-        marginTop: 6,
-        width: "100%",
-        padding: "8px 14px",
-        borderRadius: 8,
-        background: guardandoNota ? "#1a1d27" : "#4f7cff18",
-        border: "1px solid #4f7cff35",
-        color: guardandoNota ? "#4a4f6a" : "#7aa0ff",
-        fontSize: 12,
-        fontWeight: 600,
-        cursor: guardandoNota ? "not-allowed" : "pointer",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 6,
-        fontFamily: "'DM Sans', system-ui, sans-serif",
-        transition: "all 0.15s",
-      }}
-    >
-      <FileText size={12} />
-      {guardandoNota ? "Guardando..." : "Guardar nota"}
-    </button>
-  </div>
-)}
+              <button
+                type="button"
+                onClick={handleGuardarNota}
+                disabled={guardandoNota}
+                style={{
+                  marginTop: 6,
+                  width: "100%",
+                  padding: "8px 14px",
+                  borderRadius: 8,
+                  background: guardandoNota ? "#1a1d27" : "#4f7cff18",
+                  border: "1px solid #4f7cff35",
+                  color: guardandoNota ? "#4a4f6a" : "#7aa0ff",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: guardandoNota ? "not-allowed" : "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  fontFamily: "'DM Sans', system-ui, sans-serif",
+                  transition: "all 0.15s",
+                }}
+              >
+                <FileText size={12} />
+                {guardandoNota ? "Guardando..." : "Guardar nota"}
+              </button>
+            </div>
+          )}
         </div>
 
         <div style={{ borderTop: "1px solid #1e2130" }} />
@@ -695,7 +754,11 @@ export default function VolqueteSidebar({
                 gap: 8,
               }}
             >
-              <AlertTriangle size={14} color="#ff6b6b" style={{ flexShrink: 0 }} />
+              <AlertTriangle
+                size={14}
+                color="#ff6b6b"
+                style={{ flexShrink: 0 }}
+              />
               <div>
                 <span
                   style={{
@@ -726,7 +789,11 @@ export default function VolqueteSidebar({
                 gap: 8,
               }}
             >
-              <TruckIcon size={14} color="#7aa0ff" style={{ flexShrink: 0 }} />
+              <TruckIcon
+                size={14}
+                color="#7aa0ff"
+                style={{ flexShrink: 0 }}
+              />
               <span style={{ fontSize: 12, fontWeight: 600, color: "#7aa0ff" }}>
                 Libre — sin alquiler activo
               </span>
@@ -745,7 +812,11 @@ export default function VolqueteSidebar({
                 gap: 8,
               }}
             >
-              <AlertTriangle size={14} color="#f59e0b" style={{ flexShrink: 0 }} />
+              <AlertTriangle
+                size={14}
+                color="#f59e0b"
+                style={{ flexShrink: 0 }}
+              />
               <span style={{ fontSize: 12, fontWeight: 600, color: "#f59e0b" }}>
                 Sin dirección registrada
               </span>
@@ -764,8 +835,14 @@ export default function VolqueteSidebar({
                 gap: 8,
               }}
             >
-              <AlertTriangle size={14} color="#ff6b6b55" style={{ flexShrink: 0 }} />
-              <span style={{ fontSize: 12, fontWeight: 500, color: "#ff6b6b55" }}>
+              <AlertTriangle
+                size={14}
+                color="#ff6b6b55"
+                style={{ flexShrink: 0 }}
+              />
+              <span
+                style={{ fontSize: 12, fontWeight: 500, color: "#ff6b6b55" }}
+              >
                 Retirá el volquete antes de eliminarlo
               </span>
             </div>
@@ -783,8 +860,14 @@ export default function VolqueteSidebar({
                 gap: 8,
               }}
             >
-              <AlertTriangle size={14} color="#9ba3c055" style={{ flexShrink: 0 }} />
-              <span style={{ fontSize: 12, fontWeight: 500, color: "#9ba3c055" }}>
+              <AlertTriangle
+                size={14}
+                color="#9ba3c055"
+                style={{ flexShrink: 0 }}
+              />
+              <span
+                style={{ fontSize: 12, fontWeight: 500, color: "#9ba3c055" }}
+              >
                 El reemplazo solo aplica con alquiler activo
               </span>
             </div>
@@ -809,8 +892,10 @@ export default function VolqueteSidebar({
             </button>
           )}
 
-          {/* ✅ CAMBIO 3: Reemplazar — jefe siempre, empleado solo en municipales con alquiler */}
-{(isJefe || (isEmpleado && ((esPrivado && enAlquilerPrivado) || (!esPrivado && enAlquiler)))) && (
+          {(isJefe ||
+            (isEmpleado &&
+              ((esPrivado && enAlquilerPrivado) ||
+                (!esPrivado && enAlquiler)))) && (
             <button
               className="btn-secondary"
               onClick={() => setConfirmAction("reemplazar")}
@@ -831,14 +916,15 @@ export default function VolqueteSidebar({
             </button>
           )}
 
-          {/* Eliminar: solo jefe */}
           {isJefe && (
             <button
               className="btn-secondary"
               onClick={() => setConfirmAction("eliminar")}
               disabled={enAlquilerPrivado}
               title={
-                enAlquilerPrivado ? "No se puede eliminar un volquete en alquiler" : undefined
+                enAlquilerPrivado
+                  ? "No se puede eliminar un volquete en alquiler"
+                  : undefined
               }
               style={
                 enAlquilerPrivado
@@ -856,7 +942,9 @@ export default function VolqueteSidebar({
       <ConfirmModal
         open={confirmAction === "colocar"}
         title="Confirmar colocación"
-        description={`Se iniciará el alquiler de "${volquete.nombre}" en ${direccion || "la ubicación indicada"}.`}
+        description={`Se iniciará el alquiler de "${volquete.nombre}" en ${
+          direccion || "la ubicación indicada"
+        }.`}
         confirmLabel="Iniciar alquiler"
         variant="primary"
         icon={<MapPin size={16} color="#4f7cff" />}
