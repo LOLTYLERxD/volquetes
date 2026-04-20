@@ -11,6 +11,8 @@ import {
   retirarVolquete,
   fetchPrecioVolquete,
   updatePrecioVolquete,
+  fetchGalponStock,
+  updateGalponStock,
 } from "@/lib/api";
 
 import VolqueteList from "@/components/volquete-list";
@@ -24,7 +26,7 @@ import { usePage, router } from "@inertiajs/react";
 
 type MobileTab = "map" | "list" | "stats";
 type RightPanel = "none" | "detail" | "stats";
-type FilterStatus = "all" | "libres" | "colocados" | "vencidos";
+type FilterStatus = "all" | "libres" | "colocados" | "vencidos" | "galpon";
 
 export default function Home() {
   const { isJefe } = useAuth();
@@ -38,10 +40,10 @@ export default function Home() {
   const [volquetes, setVolquetes] = useState<Volquete[]>([]);
   const [selectedVolquete, setSelectedVolquete] = useState<Volquete | null>(null);
   const [rightPanel, setRightPanel] = useState<RightPanel>("none");
-const handleUpdateVolquete = useCallback((actualizado: Volquete) => {
-  setVolquetes((prev) => prev.map((v) => v.id === actualizado.id ? actualizado : v));
-  setSelectedVolquete(actualizado);
-}, []);
+  const handleUpdateVolquete = useCallback((actualizado: Volquete) => {
+    setVolquetes((prev) => prev.map((v) => v.id === actualizado.id ? actualizado : v));
+    setSelectedVolquete(actualizado);
+  }, []);
   const [isAddingMode, setIsAddingMode] = useState(false);
   const [addingCoords, setAddingCoords] = useState<{ lat: number; lng: number; direccion?: string } | null>(null);
   const [isGeocodingAddress, setIsGeocodingAddress] = useState(false);
@@ -69,6 +71,12 @@ const handleUpdateVolquete = useCallback((actualizado: Volquete) => {
   const [precioVolquete, setPrecioVolquete] = useState("");
   const [cargandoPrecio, setCargandoPrecio] = useState(false);
   const [guardandoPrecio, setGuardandoPrecio] = useState(false);
+
+  const [galponModalOpen, setGalponModalOpen] = useState(false);
+  const [galponCantidad, setGalponCantidad] = useState("");
+  const [cargandoGalpon, setCargandoGalpon] = useState(false);
+  const [guardandoGalpon, setGuardandoGalpon] = useState(false);
+  const [galponStock, setGalponStock] = useState<number>(0);
 
   useEffect(() => {
     function handleOutside(e: MouseEvent) {
@@ -128,6 +136,12 @@ const handleUpdateVolquete = useCallback((actualizado: Volquete) => {
         console.error(e);
         setVolquetes([]);
       });
+  }, []);
+
+  useEffect(() => {
+    fetchGalponStock()
+      .then(setGalponStock)
+      .catch(() => setGalponStock(0));
   }, []);
 
   useEffect(() => {
@@ -238,12 +252,12 @@ const handleUpdateVolquete = useCallback((actualizado: Volquete) => {
       const updated =
         selectedVolquete.esPrivado === false
           ? await trasladarVolquete(selectedVolquete.id, {
-              direccion: payload.direccion,
-              lat: payload.lat,
-              lng: payload.lng,
-              motivo: (data as any).motivo,
-              nota: payload.nota,
-            })
+            direccion: payload.direccion,
+            lat: payload.lat,
+            lng: payload.lng,
+            motivo: (data as any).motivo,
+            nota: payload.nota,
+          })
           : await colocarVolquete(selectedVolquete.id, payload);
 
       toast({
@@ -322,58 +336,71 @@ const handleUpdateVolquete = useCallback((actualizado: Volquete) => {
     }
   }, [rightPanel]);
 
-const abrirModalPrecio = useCallback(async () => {
-  setPrecioModalOpen(true);
-  setCargandoPrecio(true);
+  const abrirModalPrecio = useCallback(async () => {
+    setPrecioModalOpen(true);
+    setCargandoPrecio(true);
+    try {
+      const valor = await fetchPrecioVolquete();
+      setPrecioVolquete(String(valor));
+    } catch {
+      toast({ title: "Error", description: "No se pudo cargar el precio actual", variant: "destructive" });
+      setPrecioVolquete("");
+    } finally {
+      setCargandoPrecio(false);
+    }
+  }, []);
 
-  try {
-    const valor = await fetchPrecioVolquete();
-    setPrecioVolquete(String(valor));
-  } catch {
-    toast({
-      title: "Error",
-      description: "No se pudo cargar el precio actual",
-      variant: "destructive",
-    });
-    setPrecioVolquete("");
-  } finally {
-    setCargandoPrecio(false);
-  }
-}, []);
+  const guardarPrecioVolquete = useCallback(async () => {
+    const valor = Number(precioVolquete);
+    if (!precioVolquete.trim() || Number.isNaN(valor) || valor < 0) {
+      toast({ title: "Precio inválido", description: "Ingresá un valor válido mayor o igual a 0", variant: "destructive" });
+      return;
+    }
+    setGuardandoPrecio(true);
+    try {
+      await updatePrecioVolquete(valor);
+      toast({ title: "✅ Precio actualizado", description: `Nuevo precio: $${valor.toLocaleString("es-AR")}` });
+      setPrecioModalOpen(false);
+    } catch {
+      toast({ title: "Error", description: "No se pudo guardar el precio", variant: "destructive" });
+    } finally {
+      setGuardandoPrecio(false);
+    }
+  }, [precioVolquete]);
 
-const guardarPrecioVolquete = useCallback(async () => {
-  const valor = Number(precioVolquete);
+  const abrirModalGalpon = useCallback(async () => {
+    setGalponModalOpen(true);
+    setCargandoGalpon(true);
+    try {
+      const valor = await fetchGalponStock();
+      setGalponCantidad(String(valor));
+      setGalponStock(valor);
+    } catch {
+      toast({ title: "Error", description: "No se pudo cargar el stock del galpón", variant: "destructive" });
+      setGalponCantidad("0");
+    } finally {
+      setCargandoGalpon(false);
+    }
+  }, []);
 
-  if (!precioVolquete.trim() || Number.isNaN(valor) || valor < 0) {
-    toast({
-      title: "Precio inválido",
-      description: "Ingresá un valor válido mayor o igual a 0",
-      variant: "destructive",
-    });
-    return;
-  }
-
-  setGuardandoPrecio(true);
-
-  try {
-    await updatePrecioVolquete(valor);
-
-    toast({
-      title: "✅ Precio actualizado",
-      description: `Nuevo precio: $${valor.toLocaleString("es-AR")}`,
-    });
-
-    setPrecioModalOpen(false);
-  } catch {
-    toast({
-      title: "Error",
-      description: "No se pudo guardar el precio",
-      variant: "destructive",
-    });
-  } finally {
-    setGuardandoPrecio(false);
-  }
-}, [precioVolquete]);
+  const guardarGalponStock = useCallback(async () => {
+    const valor = Number(galponCantidad);
+    if (!galponCantidad.trim() || Number.isNaN(valor) || valor < 0) {
+      toast({ title: "Cantidad inválida", description: "Ingresá un número válido mayor o igual a 0", variant: "destructive" });
+      return;
+    }
+    setGuardandoGalpon(true);
+    try {
+      await updateGalponStock(valor);
+      setGalponStock(valor);
+      toast({ title: "✅ Stock actualizado", description: `Volquetes en galpón: ${valor}` });
+      setGalponModalOpen(false);
+    } catch {
+      toast({ title: "Error", description: "No se pudo guardar el stock", variant: "destructive" });
+    } finally {
+      setGuardandoGalpon(false);
+    }
+  }, [galponCantidad]);
 
   const filteredVolquetes = volquetes.filter((v) => {
     const q = searchQuery.trim().toLowerCase();
@@ -386,6 +413,7 @@ const guardarPrecioVolquete = useCallback(async () => {
     let matchStatus = true;
     if (filterStatus === "libres") matchStatus = !v.colocado;
     if (filterStatus === "colocados") matchStatus = v.colocado;
+    if (filterStatus === "galpon") matchStatus = !v.colocado;
     if (filterStatus === "vencidos") {
       if (!v.fechaColocacion) matchStatus = false;
       else matchStatus = Math.floor((new Date().getTime() - new Date(v.fechaColocacion).getTime()) / 86400000) > 7;
@@ -398,6 +426,7 @@ const guardarPrecioVolquete = useCallback(async () => {
     total: volquetes.length,
     colocados: volquetes.filter((v) => v.colocado).length,
     libres: volquetes.filter((v) => !v.colocado).length,
+    galpon: galponStock,
   };
 
   const [isDesktop, setIsDesktop] = useState(
@@ -452,498 +481,383 @@ const guardarPrecioVolquete = useCallback(async () => {
         @media (min-width: 768px) { .md-hidden { display: none !important; } .desktop-only { display: flex !important; } }
         @media (max-width: 767px) { .desktop-only { display: none !important; } }
         .logo-container {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  flex-shrink: 0;
-}
-
-.logo-icon {
-  padding: 4px 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.logo-icon img {
-  height: 58px;
-  width: 58px;
-  object-fit: contain;
-  display: block;
-}
-
-.logo-text {
-  display: flex;
-  flex-direction: column;
-  line-height: 1;
-  min-width: 0;
-}
-
-.logo-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: white;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-}
-
-.logo-subtitle {
-  font-size: 11px;
-  color: #9ca3af;
-  margin-top: 4px;
-  white-space: nowrap;
-}
-
-@media (max-width: 767px) {
-  .logo-text {
-    display: none !important;
-  }
-
-  .logo-icon {
-    padding: 0;
-  }
-
-  .logo-icon img {
-    height: 72px;
-    width: 72px;
-  }
-}
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          min-width: 0;
+          flex-shrink: 0;
+        }
+        .logo-icon {
+          padding: 4px 6px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        .logo-icon img {
+          height: 58px;
+          width: 58px;
+          object-fit: contain;
+          display: block;
+        }
+        .logo-text {
+          display: flex;
+          flex-direction: column;
+          line-height: 1;
+          min-width: 0;
+        }
+        .logo-title {
+          font-size: 16px;
+          font-weight: 700;
+          color: white;
+          letter-spacing: 0.02em;
+          white-space: nowrap;
+        }
+        .logo-subtitle {
+          font-size: 11px;
+          color: #9ca3af;
+          margin-top: 4px;
+          white-space: nowrap;
+        }
+        @media (max-width: 767px) {
+          .logo-text { display: none !important; }
+          .logo-icon { padding: 0; }
+          .logo-icon img { height: 72px; width: 72px; }
+        }
+        .hdr-stat.galpon-clickable { cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+        .hdr-stat.galpon-clickable:hover { background: #a78bfa12; border-color: #a78bfa40; }
       `}</style>
 
-<header
-  style={{
-    height: 56,
-    flexShrink: 0,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "0 16px",
-    background: "#0a0d14",
-    borderBottom: "1px solid #1e2130",
-    zIndex: 99990,
-    position: "relative",
-    fontFamily: "'DM Sans', system-ui, sans-serif",
-    gap: 12,
-  }}
-  
->
-<div className="logo-container">
-  <div className="logo-icon">
-    <img src="/icons/android-icon-192x192.png" alt="TG" />
-  </div>
-
-  <div className="logo-text">
-    <span className="logo-title">T.G VOLQUETES</span>
-    <span className="logo-subtitle">Choele Choel · Río Negro</span>
-  </div>
-</div>
-
-  <div className="desktop-only" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-    <div className="hdr-stat">
-      <span className="hdr-stat-dot" style={{ background: "#4ade80", boxShadow: "0 0 5px #4ade8080" }} />
-      <span className="hdr-stat-val" style={{ color: "#4ade80" }}>{stats.colocados}</span>
-      <span className="hdr-stat-label">alquilados</span>
-    </div>
-    <div className="hdr-stat">
-      <span className="hdr-stat-dot" style={{ background: "#9ba3c0" }} />
-      <span className="hdr-stat-val" style={{ color: "#9ba3c0" }}>{stats.libres}</span>
-      <span className="hdr-stat-label">libres</span>
-    </div>
-    <div className="hdr-sep" />
-    <div className="hdr-stat">
-      <span className="hdr-stat-val" style={{ color: "#e2e5f0" }}>{stats.total}</span>
-      <span className="hdr-stat-label">total</span>
-    </div>
-  </div>
-
-  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-    <button
-      className={`hdr-icon-btn desktop-only${rightPanel === "stats" ? " active" : ""}`}
-      onClick={toggleStats}
-      aria-label="Ver estadísticas"
-      style={{ display: "flex" }}
-      title="Estadísticas rápidas"
-    >
-      <BarChart3 size={16} color={rightPanel === "stats" ? "#7aa0ff" : "#6b7290"} />
-    </button>
-
-    {/* NUEVO: botón precio en mobile */}
-    {isJefe && !isDesktop && (
-      <button
-        className={`hdr-icon-btn${precioModalOpen ? " active" : ""}`}
-        onClick={abrirModalPrecio}
-        aria-label="Cambiar precio"
-        title="Cambiar precio"
-        style={{ display: "flex" }}
-      >
-        <span
-          style={{
-            color: precioModalOpen ? "#7aa0ff" : "#22c55e",
-            fontSize: 15,
-            fontWeight: 800,
-            lineHeight: 1,
-          }}
-        >
-          $
-        </span>
-      </button>
-    )}
-
-    {isJefe && (
-      <div ref={statsMenuRef} style={{ position: "relative" }} className="desktop-only">
-        <button
-          className={`hdr-icon-btn${statsMenuOpen ? " active" : ""}`}
-          style={{ display: "flex" }}
-          title="Panel de estadísticas"
-          onClick={() => setStatsMenuOpen((o) => !o)}
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke={statsMenuOpen ? "#7aa0ff" : "#6b7290"}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <rect x="3" y="3" width="7" height="7" />
-            <rect x="14" y="3" width="7" height="7" />
-            <rect x="14" y="14" width="7" height="7" />
-            <rect x="3" y="14" width="7" height="7" />
-          </svg>
-        </button>
-
-        {statsMenuOpen && (
-          <div
-            style={{
-              position: "absolute",
-              top: "calc(100% + 8px)",
-              right: 0,
-              background: "#0f1117",
-              border: "1px solid #2a2d3a",
-              borderRadius: 10,
-              boxShadow: "0 16px 48px rgba(0,0,0,0.7)",
-              zIndex: 9999,
-              overflow: "hidden",
-              minWidth: 190,
-              animation: "dropIn 0.18s cubic-bezier(0.34,1.56,0.64,1)",
-              fontFamily: "'DM Sans', system-ui, sans-serif",
-            }}
-          >
-            <div style={{ padding: "10px 14px 8px", borderBottom: "1px solid #1e2130" }}>
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  color: "#4a4f6a",
-                }}
-              >
-                Panel de estadísticas
-              </span>
-            </div>
-
-            <a
-              href="/stats"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "11px 14px",
-                color: "#e2e5f0",
-                textDecoration: "none",
-                fontSize: 13,
-                fontWeight: 600,
-                borderBottom: "1px solid #1e2130",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#1a1d27")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-            >
-              <div
-                style={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: 6,
-                  background: "#4f7cff18",
-                  border: "1px solid #4f7cff30",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <BarChart3 size={13} color="#4f7cff" />
-              </div>
-              Privados
-            </a>
-
-            <a
-              href="/stats/municipales"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "11px 14px",
-                color: "#e2e5f0",
-                textDecoration: "none",
-                fontSize: 13,
-                fontWeight: 600,
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#1a1d27")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-            >
-              <div
-                style={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: 6,
-                  background: "#f5c84218",
-                  border: "1px solid #f5c84230",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <BarChart3 size={13} color="#f5c842" />
-              </div>
-              Municipales
-            </a>
-
-            <button
-              onClick={() => {
-                setStatsMenuOpen(false);
-                abrirModalPrecio();
-              }}
-              style={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "11px 14px",
-                background: "transparent",
-                border: "none",
-                borderTop: "1px solid #1e2130",
-                cursor: "pointer",
-                fontSize: 13,
-                fontWeight: 600,
-                color: "#e2e5f0",
-                fontFamily: "'DM Sans', system-ui, sans-serif",
-                textAlign: "left",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#1a1d27")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-            >
-              <div
-                style={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: 6,
-                  background: "#22c55e18",
-                  border: "1px solid #22c55e30",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "#22c55e",
-                  fontSize: 13,
-                  fontWeight: 700,
-                }}
-              >
-                $
-              </div>
-              Cambiar precio
-            </button>
-          </div>
-        )}
-      </div>
-    )}
-
-    <button
-      ref={notifBtnRef}
-      className={`hdr-icon-btn${notifOpen ? " active" : ""}`}
-      onClick={() => {
-        setNotifOpen((o) => !o);
-        setNotifRead(true);
-      }}
-      aria-label="Notificaciones"
-      style={{ position: "relative" }}
-    >
-      <Bell size={16} color={notifOpen ? "#7aa0ff" : notifications.length > 0 ? "#ff6b6b" : "#6b7290"} />
-      {notifications.length > 0 && !notifRead && (
-        <span
-          style={{
-            position: "absolute",
-            top: 4,
-            right: 4,
-            width: 8,
-            height: 8,
-            borderRadius: "50%",
-            background: "#ff6b6b",
-            boxShadow: "0 0 6px #ff6b6b",
-            border: "1.5px solid #0a0d14",
-          }}
-        />
-      )}
-    </button>
-
-    {isJefe && (
-      <button
-        className={`hdr-add-btn ${isAddingMode ? "cancel" : "default"}`}
-        onClick={() => {
-          setIsAddingMode(!isAddingMode);
-          if (isAddingMode) setAddingCoords(null);
-          else setMobileTab("map");
+      <header
+        style={{
+          height: 56,
+          flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "0 16px",
+          background: "#0a0d14",
+          borderBottom: "1px solid #1e2130",
+          zIndex: 99990,
+          position: "relative",
+          fontFamily: "'DM Sans', system-ui, sans-serif",
+          gap: 12,
         }}
       >
-        {isAddingMode ? <X size={14} /> : <Plus size={14} />}
-        <span className="desktop-only" style={{ display: "inline" }}>
-          {isAddingMode ? "Cancelar" : "Agregar"}
-        </span>
-      </button>
-    )}
-
-    <div ref={userMenuRef} style={{ position: "relative", flexShrink: 0 }}>
-      <button className="user-btn" onClick={() => setUserMenuOpen((o) => !o)}>
-        <div
-          style={{
-            width: 26,
-            height: 26,
-            borderRadius: "50%",
-            background: "linear-gradient(135deg, #4f7cff, #7aa0ff)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 10,
-            fontWeight: 800,
-            color: "#fff",
-            letterSpacing: "0.02em",
-            flexShrink: 0,
-          }}
-        >
-          {initials}
+        <div className="logo-container">
+          <div className="logo-icon">
+            <img src="/icons/android-icon-192x192.png" alt="TG" />
+          </div>
+          <div className="logo-text">
+            <span className="logo-title">T.G VOLQUETES</span>
+            <span className="logo-subtitle">Choele Choel · Río Negro</span>
+          </div>
         </div>
 
-        <div className="desktop-only" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 0 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: "#c8cedf", lineHeight: 1.2 }}>
-            {user?.name ?? "Usuario"}
-          </span>
-          <span
-            style={{
-              fontSize: 10,
-              color: "#3d4870",
-              fontWeight: 500,
-              letterSpacing: "0.04em",
-              textTransform: "uppercase",
-              lineHeight: 1.2,
-            }}
+        <div className="desktop-only" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div className="hdr-stat">
+            <span className="hdr-stat-dot" style={{ background: "#4ade80", boxShadow: "0 0 5px #4ade8080" }} />
+            <span className="hdr-stat-val" style={{ color: "#4ade80" }}>{stats.colocados}</span>
+            <span className="hdr-stat-label">alquilados</span>
+          </div>
+          <div className="hdr-stat">
+            <span className="hdr-stat-dot" style={{ background: "#9ba3c0" }} />
+            <span className="hdr-stat-val" style={{ color: "#9ba3c0" }}>{stats.libres}</span>
+            <span className="hdr-stat-label">libres</span>
+          </div>
+          <div
+            className={`hdr-stat${isJefe ? " galpon-clickable" : ""}`}
+            onClick={isJefe ? abrirModalGalpon : undefined}
+            title={isJefe ? "Editar stock del galpón" : undefined}
           >
-            {user?.role ?? ""}
-          </span>
+            <span className="hdr-stat-dot" style={{ background: "#a78bfa", boxShadow: "0 0 5px #a78bfa50" }} />
+            <span className="hdr-stat-val" style={{ color: "#a78bfa" }}>{stats.galpon}</span>
+            <span className="hdr-stat-label">en galpón</span>
+          </div>
+          <div className="hdr-sep" />
+          <div className="hdr-stat">
+            <span className="hdr-stat-val" style={{ color: "#e2e5f0" }}>{stats.total}</span>
+            <span className="hdr-stat-label">total</span>
+          </div>
         </div>
 
-        <ChevronDown size={12} color="#3d4870" style={{ marginLeft: 2 }} className="desktop-only" />
-      </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <button
+            className={`hdr-icon-btn desktop-only${rightPanel === "stats" ? " active" : ""}`}
+            onClick={toggleStats}
+            aria-label="Ver estadísticas"
+            style={{ display: "flex" }}
+            title="Estadísticas rápidas"
+          >
+            <BarChart3 size={16} color={rightPanel === "stats" ? "#7aa0ff" : "#6b7290"} />
+          </button>
 
-      {userMenuOpen && (
-        <div
-          style={{
-            position: "absolute",
-            top: "calc(100% + 8px)",
-            right: 0,
-            minWidth: 210,
-            background: "#0f1117",
-            border: "1px solid #2a2d3a",
-            borderRadius: 12,
-            boxShadow: "0 16px 48px rgba(0,0,0,0.7)",
-            zIndex: 9999,
-            overflow: "hidden",
-            animation: "dropIn 0.18s cubic-bezier(0.34,1.56,0.64,1)",
-            fontFamily: "'DM Sans', system-ui, sans-serif",
-          }}
-        >
-          <div style={{ padding: "14px 14px 12px", borderBottom: "1px solid #1e2130" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {isJefe && !isDesktop && (
+            <button
+              className={`hdr-icon-btn${precioModalOpen ? " active" : ""}`}
+              onClick={abrirModalPrecio}
+              aria-label="Cambiar precio"
+              title="Cambiar precio"
+              style={{ display: "flex" }}
+            >
+              <span style={{ color: precioModalOpen ? "#7aa0ff" : "#22c55e", fontSize: 15, fontWeight: 800, lineHeight: 1 }}>
+                $
+              </span>
+            </button>
+          )}
+
+          {isJefe && !isDesktop && (
+            <button
+              className={`hdr-icon-btn${galponModalOpen ? " active" : ""}`}
+              onClick={abrirModalGalpon}
+              aria-label="Stock galpón"
+              title="Stock galpón"
+              style={{ display: "flex" }}
+            >
+              <span style={{ color: galponModalOpen ? "#7aa0ff" : "#a78bfa", fontSize: 14, fontWeight: 800, lineHeight: 1 }}>
+                ▣
+              </span>
+            </button>
+          )}
+
+          {isJefe && (
+            <div ref={statsMenuRef} style={{ position: "relative" }} className="desktop-only">
+              <button
+                className={`hdr-icon-btn${statsMenuOpen ? " active" : ""}`}
+                style={{ display: "flex" }}
+                title="Panel de estadísticas"
+                onClick={() => setStatsMenuOpen((o) => !o)}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke={statsMenuOpen ? "#7aa0ff" : "#6b7290"}
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect x="3" y="3" width="7" height="7" />
+                  <rect x="14" y="3" width="7" height="7" />
+                  <rect x="14" y="14" width="7" height="7" />
+                  <rect x="3" y="14" width="7" height="7" />
+                </svg>
+              </button>
+
+              {statsMenuOpen && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "calc(100% + 8px)",
+                    right: 0,
+                    background: "#0f1117",
+                    border: "1px solid #2a2d3a",
+                    borderRadius: 10,
+                    boxShadow: "0 16px 48px rgba(0,0,0,0.7)",
+                    zIndex: 9999,
+                    overflow: "hidden",
+                    minWidth: 190,
+                    animation: "dropIn 0.18s cubic-bezier(0.34,1.56,0.64,1)",
+                    fontFamily: "'DM Sans', system-ui, sans-serif",
+                  }}
+                >
+                  <div style={{ padding: "10px 14px 8px", borderBottom: "1px solid #1e2130" }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#4a4f6a" }}>
+                      Panel de estadísticas
+                    </span>
+                  </div>
+
+                  <a
+                    href="/stats"
+                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", color: "#e2e5f0", textDecoration: "none", fontSize: 13, fontWeight: 600, borderBottom: "1px solid #1e2130" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "#1a1d27")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <div style={{ width: 24, height: 24, borderRadius: 6, background: "#4f7cff18", border: "1px solid #4f7cff30", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <BarChart3 size={13} color="#4f7cff" />
+                    </div>
+                    Privados
+                  </a>
+
+                  <a
+                    href="/stats/municipales"
+                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", color: "#e2e5f0", textDecoration: "none", fontSize: 13, fontWeight: 600 }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "#1a1d27")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <div style={{ width: 24, height: 24, borderRadius: 6, background: "#f5c84218", border: "1px solid #f5c84230", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <BarChart3 size={13} color="#f5c842" />
+                    </div>
+                    Municipales
+                  </a>
+
+                  <button
+                    onClick={() => { setStatsMenuOpen(false); abrirModalPrecio(); }}
+                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", background: "transparent", border: "none", borderTop: "1px solid #1e2130", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#e2e5f0", fontFamily: "'DM Sans', system-ui, sans-serif", textAlign: "left" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "#1a1d27")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <div style={{ width: 24, height: 24, borderRadius: 6, background: "#22c55e18", border: "1px solid #22c55e30", display: "flex", alignItems: "center", justifyContent: "center", color: "#22c55e", fontSize: 13, fontWeight: 700 }}>
+                      $
+                    </div>
+                    Cambiar precio
+                  </button>
+
+                  <button
+                    onClick={() => { setStatsMenuOpen(false); abrirModalGalpon(); }}
+                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", background: "transparent", border: "none", borderTop: "1px solid #1e2130", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#e2e5f0", fontFamily: "'DM Sans', system-ui, sans-serif", textAlign: "left" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "#1a1d27")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <div style={{ width: 24, height: 24, borderRadius: 6, background: "#a78bfa18", border: "1px solid #a78bfa30", display: "flex", alignItems: "center", justifyContent: "center", color: "#a78bfa", fontSize: 13, fontWeight: 700 }}>
+                      ▣
+                    </div>
+                    Stock galpón
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          <button
+            ref={notifBtnRef}
+            className={`hdr-icon-btn${notifOpen ? " active" : ""}`}
+            onClick={() => { setNotifOpen((o) => !o); setNotifRead(true); }}
+            aria-label="Notificaciones"
+            style={{ position: "relative" }}
+          >
+            <Bell size={16} color={notifOpen ? "#7aa0ff" : notifications.length > 0 ? "#ff6b6b" : "#6b7290"} />
+            {notifications.length > 0 && !notifRead && (
+              <span
+                style={{
+                  position: "absolute",
+                  top: 4,
+                  right: 4,
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: "#ff6b6b",
+                  boxShadow: "0 0 6px #ff6b6b",
+                  border: "1.5px solid #0a0d14",
+                }}
+              />
+            )}
+          </button>
+
+          {isJefe && (
+            <button
+              className={`hdr-add-btn ${isAddingMode ? "cancel" : "default"}`}
+              onClick={() => {
+                setIsAddingMode(!isAddingMode);
+                if (isAddingMode) setAddingCoords(null);
+                else setMobileTab("map");
+              }}
+            >
+              {isAddingMode ? <X size={14} /> : <Plus size={14} />}
+              <span className="desktop-only" style={{ display: "inline" }}>
+                {isAddingMode ? "Cancelar" : "Agregar"}
+              </span>
+            </button>
+          )}
+
+          <div ref={userMenuRef} style={{ position: "relative", flexShrink: 0 }}>
+            <button className="user-btn" onClick={() => setUserMenuOpen((o) => !o)}>
               <div
                 style={{
-                  width: 38,
-                  height: 38,
+                  width: 26,
+                  height: 26,
                   borderRadius: "50%",
                   background: "linear-gradient(135deg, #4f7cff, #7aa0ff)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: 14,
+                  fontSize: 10,
                   fontWeight: 800,
                   color: "#fff",
+                  letterSpacing: "0.02em",
                   flexShrink: 0,
                 }}
               >
                 {initials}
               </div>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e5f0" }}>
-                  {user?.name ?? "Usuario"}
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}>
-                  <span
-                    style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: "50%",
-                      background: "#4ade80",
-                      boxShadow: "0 0 5px #4ade8080",
-                      display: "inline-block",
-                    }}
-                  />
-                  <span
-                    style={{
-                      fontSize: 10,
-                      color: "#4a5270",
-                      fontWeight: 600,
-                      letterSpacing: "0.06em",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {user?.role ?? ""} · activo
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          <button
-            onClick={() => {
-              setUserMenuOpen(false);
-              router.post("/logout");
-            }}
-            style={{
-              width: "100%",
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "11px 14px",
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              fontSize: 13,
-              fontWeight: 600,
-              color: "#ff6b6b",
-              fontFamily: "'DM Sans', system-ui, sans-serif",
-              textAlign: "left",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "#ff4f4f12")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-          >
-            <LogOut size={14} />
-            Cerrar sesión
-          </button>
+              <div className="desktop-only" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 0 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#c8cedf", lineHeight: 1.2 }}>
+                  {user?.name ?? "Usuario"}
+                </span>
+                <span style={{ fontSize: 10, color: "#3d4870", fontWeight: 500, letterSpacing: "0.04em", textTransform: "uppercase", lineHeight: 1.2 }}>
+                  {user?.role ?? ""}
+                </span>
+              </div>
+
+              <ChevronDown size={12} color="#3d4870" style={{ marginLeft: 2 }} className="desktop-only" />
+            </button>
+
+            {userMenuOpen && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 8px)",
+                  right: 0,
+                  minWidth: 210,
+                  background: "#0f1117",
+                  border: "1px solid #2a2d3a",
+                  borderRadius: 12,
+                  boxShadow: "0 16px 48px rgba(0,0,0,0.7)",
+                  zIndex: 9999,
+                  overflow: "hidden",
+                  animation: "dropIn 0.18s cubic-bezier(0.34,1.56,0.64,1)",
+                  fontFamily: "'DM Sans', system-ui, sans-serif",
+                }}
+              >
+                <div style={{ padding: "14px 14px 12px", borderBottom: "1px solid #1e2130" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div
+                      style={{
+                        width: 38,
+                        height: 38,
+                        borderRadius: "50%",
+                        background: "linear-gradient(135deg, #4f7cff, #7aa0ff)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 14,
+                        fontWeight: 800,
+                        color: "#fff",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {initials}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e5f0" }}>
+                        {user?.name ?? "Usuario"}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}>
+                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#4ade80", boxShadow: "0 0 5px #4ade8080", display: "inline-block" }} />
+                        <span style={{ fontSize: 10, color: "#4a5270", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                          {user?.role ?? ""} · activo
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => { setUserMenuOpen(false); router.post("/logout"); }}
+                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", background: "transparent", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#ff6b6b", fontFamily: "'DM Sans', system-ui, sans-serif", textAlign: "left" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "#ff4f4f12")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  <LogOut size={14} />
+                  Cerrar sesión
+                </button>
+              </div>
+            )}
+          </div>
         </div>
-      )}
-    </div>
-  </div>
-</header>
+      </header>
 
       <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative" }}>
         <aside
@@ -1012,8 +926,11 @@ const guardarPrecioVolquete = useCallback(async () => {
               overflow: "hidden",
             }}
           >
-            <StatsPanel volquetes={volquetes} onClose={() => setMobileTab("map")} />
-          </div>
+<StatsPanel
+  volquetes={volquetes}
+  galponStock={galponStock}
+  onClose={() => setMobileTab("map")}
+/>          </div>
         )}
 
         <main style={{ flex: 1, position: "relative", zIndex: 1, overflow: "hidden" }}>
@@ -1021,6 +938,7 @@ const guardarPrecioVolquete = useCallback(async () => {
             <VolqueteMap
               volquetes={filteredVolquetes}
               statsVolquetes={volquetes}
+              galponStock={galponStock}
               selectedVolquete={selectedVolquete}
               onSelectVolquete={handleSelectVolquete}
               onMapClick={handleMapClick}
@@ -1044,48 +962,54 @@ const guardarPrecioVolquete = useCallback(async () => {
             }}
           >
             {rightPanel === "detail" && selectedVolquete && (
-<VolqueteSidebar
-  volquete={selectedVolquete}
-  onUpdate={handleUpdateVolquete} 
-onClose={() => setRightPanel("none")}
-  onDelete={() => handleDeleteVolquete(selectedVolquete.id)}
-  onColocar={handleColocar}
-  onRetirar={handleRetirar}
-  onReemplazar={handleReemplazar}
-/>
+              <VolqueteSidebar
+                volquete={selectedVolquete}
+                onUpdate={handleUpdateVolquete}
+                onClose={() => setRightPanel("none")}
+                onDelete={() => handleDeleteVolquete(selectedVolquete.id)}
+                onColocar={handleColocar}
+                onRetirar={handleRetirar}
+                onReemplazar={handleReemplazar}
+              />
             )}
-            {rightPanel === "stats" && <StatsPanel volquetes={volquetes} onClose={() => setRightPanel("none")} />}
+{rightPanel === "stats" && (
+  <StatsPanel
+    volquetes={volquetes}
+    galponStock={galponStock}
+    onClose={() => setRightPanel("none")}
+  />
+)}
           </aside>
         )}
 
-       {!isDesktop && mobileDetailOpen && selectedVolquete && (
-  <div
-    style={{
-      position: "fixed",
-      top: 56,
-      left: 0,
-      right: 0,
-      bottom: "calc(56px + env(safe-area-inset-bottom))",
-      zIndex: 9999,
-      background: "#0f1117f5",
-      backdropFilter: "blur(6px)",
-      overflow: "hidden",
-    }}
-  >
-    <VolqueteSidebar
-      volquete={selectedVolquete}
-      onUpdate={handleUpdateVolquete}
-      onClose={() => {
-        setMobileDetailOpen(false);
-        setRightPanel("none");
-      }}
-      onDelete={() => handleDeleteVolquete(selectedVolquete.id)}
-      onColocar={handleColocar}
-      onRetirar={handleRetirar}
-      onReemplazar={handleReemplazar}
-    />
-  </div>
-)}
+        {!isDesktop && mobileDetailOpen && selectedVolquete && (
+          <div
+            style={{
+              position: "fixed",
+              top: 56,
+              left: 0,
+              right: 0,
+              bottom: "calc(56px + env(safe-area-inset-bottom))",
+              zIndex: 9999,
+              background: "#0f1117f5",
+              backdropFilter: "blur(6px)",
+              overflow: "hidden",
+            }}
+          >
+            <VolqueteSidebar
+              volquete={selectedVolquete}
+              onUpdate={handleUpdateVolquete}
+              onClose={() => {
+                setMobileDetailOpen(false);
+                setRightPanel("none");
+              }}
+              onDelete={() => handleDeleteVolquete(selectedVolquete.id)}
+              onColocar={handleColocar}
+              onRetirar={handleRetirar}
+              onReemplazar={handleReemplazar}
+            />
+          </div>
+        )}
 
         {addingCoords && (
           <AddVolqueteModal
@@ -1162,9 +1086,9 @@ onClose={() => setRightPanel("none")}
               window.innerWidth < 640
                 ? "auto"
                 : (() => {
-                    const r = notifBtnRef.current?.getBoundingClientRect();
-                    return r ? window.innerWidth - r.right : 8;
-                  })(),
+                  const r = notifBtnRef.current?.getBoundingClientRect();
+                  return r ? window.innerWidth - r.right : 8;
+                })(),
             transform: window.innerWidth < 640 ? "translateX(-50%)" : "none",
             zIndex: 99999,
           }}
@@ -1307,6 +1231,7 @@ onClose={() => setRightPanel("none")}
         </div>
       )}
 
+      {/* Modal precio */}
       {precioModalOpen && (
         <div
           style={{
@@ -1348,79 +1273,31 @@ onClose={() => setRightPanel("none")}
                 <div style={{ fontSize: 14, fontWeight: 700, color: "#e8ecf8" }}>
                   Cambiar precio
                 </div>
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: "#4a4f6a",
-                    marginTop: 2,
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
-                  }}
-                >
+                <div style={{ fontSize: 11, color: "#4a4f6a", marginTop: 2, letterSpacing: "0.04em", textTransform: "uppercase" }}>
                   Precio global del servicio
                 </div>
               </div>
 
               <button
                 onClick={() => !guardandoPrecio && setPrecioModalOpen(false)}
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 8,
-                  background: "#1a1d27",
-                  border: "1px solid #2a2d3a",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
+                style={{ width: 32, height: 32, borderRadius: 8, background: "#1a1d27", border: "1px solid #2a2d3a", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
               >
                 <X size={15} color="#6b7290" />
               </button>
             </div>
 
             <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
-              <div
-                style={{
-                  padding: "10px 12px",
-                  borderRadius: 10,
-                  background: "#1a1d27",
-                  border: "1px solid #2a2d3a",
-                  fontSize: 12,
-                  color: "#7a829c",
-                  lineHeight: 1.5,
-                }}
-              >
+              <div style={{ padding: "10px 12px", borderRadius: 10, background: "#1a1d27", border: "1px solid #2a2d3a", fontSize: 12, color: "#7a829c", lineHeight: 1.5 }}>
                 Este valor se usará para futuras colocaciones y reemplazos.
               </div>
 
               <div>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: 6,
-                    fontSize: 10,
-                    fontWeight: 700,
-                    letterSpacing: "0.1em",
-                    textTransform: "uppercase",
-                    color: "#4a4f6a",
-                  }}
-                >
+                <label style={{ display: "block", marginBottom: 6, fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#4a4f6a" }}>
                   Precio
                 </label>
 
                 {cargandoPrecio ? (
-                  <div
-                    style={{
-                      width: "100%",
-                      background: "#151922",
-                      border: "1px solid #262b37",
-                      borderRadius: 8,
-                      padding: "12px 14px",
-                      fontSize: 13,
-                      color: "#4a4f6a",
-                    }}
-                  >
+                  <div style={{ width: "100%", background: "#151922", border: "1px solid #262b37", borderRadius: 8, padding: "12px 14px", fontSize: 13, color: "#4a4f6a" }}>
                     Cargando precio...
                   </div>
                 ) : (
@@ -1430,44 +1307,17 @@ onClose={() => setRightPanel("none")}
                     value={precioVolquete}
                     onChange={(e) => setPrecioVolquete(e.target.value)}
                     placeholder="Ej: 52000"
-                    style={{
-                      width: "100%",
-                      background: "#1a1d27",
-                      border: "1px solid #2a2d3a",
-                      borderRadius: 8,
-                      padding: "12px 14px",
-                      fontSize: 14,
-                      color: "#e2e5f0",
-                      fontFamily: "'DM Mono', monospace",
-                      outline: "none",
-                    }}
+                    style={{ width: "100%", background: "#1a1d27", border: "1px solid #2a2d3a", borderRadius: 8, padding: "12px 14px", fontSize: 14, color: "#e2e5f0", fontFamily: "'DM Mono', monospace", outline: "none" }}
                   />
                 )}
               </div>
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                gap: 10,
-                padding: 16,
-                borderTop: "1px solid #1e2130",
-              }}
-            >
+            <div style={{ display: "flex", gap: 10, padding: 16, borderTop: "1px solid #1e2130" }}>
               <button
                 onClick={() => setPrecioModalOpen(false)}
                 disabled={guardandoPrecio}
-                style={{
-                  flex: 1,
-                  padding: "11px 14px",
-                  borderRadius: 8,
-                  background: "#1a1d27",
-                  border: "1px solid #2a2d3a",
-                  color: "#9ba3c0",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: guardandoPrecio ? "not-allowed" : "pointer",
-                }}
+                style={{ flex: 1, padding: "11px 14px", borderRadius: 8, background: "#1a1d27", border: "1px solid #2a2d3a", color: "#9ba3c0", fontSize: 13, fontWeight: 600, cursor: guardandoPrecio ? "not-allowed" : "pointer" }}
               >
                 Cancelar
               </button>
@@ -1475,19 +1325,113 @@ onClose={() => setRightPanel("none")}
               <button
                 onClick={guardarPrecioVolquete}
                 disabled={guardandoPrecio || cargandoPrecio}
-                style={{
-                  flex: 1,
-                  padding: "11px 14px",
-                  borderRadius: 8,
-                  background: guardandoPrecio ? "#2a3a70" : "#4f7cff",
-                  border: "none",
-                  color: "#fff",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: guardandoPrecio || cargandoPrecio ? "not-allowed" : "pointer",
-                }}
+                style={{ flex: 1, padding: "11px 14px", borderRadius: 8, background: guardandoPrecio ? "#2a3a70" : "#4f7cff", border: "none", color: "#fff", fontSize: 13, fontWeight: 700, cursor: guardandoPrecio || cargandoPrecio ? "not-allowed" : "pointer" }}
               >
                 {guardandoPrecio ? "Guardando..." : "Guardar precio"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal galpón */}
+      {galponModalOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.6)",
+            backdropFilter: "blur(4px)",
+            zIndex: 100000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+          }}
+          onClick={() => !guardandoGalpon && setGalponModalOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: 420,
+              background: "#0f1117",
+              border: "1px solid #2a2d3a",
+              borderRadius: 14,
+              boxShadow: "0 24px 64px rgba(0,0,0,0.75)",
+              overflow: "hidden",
+              fontFamily: "'DM Sans', system-ui, sans-serif",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "14px 16px",
+                borderBottom: "1px solid #1e2130",
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#e8ecf8" }}>
+                  Stock del galpón
+                </div>
+                <div style={{ fontSize: 11, color: "#4a4f6a", marginTop: 2, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                  Volquetes guardados físicamente
+                </div>
+              </div>
+
+              <button
+                onClick={() => !guardandoGalpon && setGalponModalOpen(false)}
+                style={{ width: 32, height: 32, borderRadius: 8, background: "#1a1d27", border: "1px solid #2a2d3a", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+              >
+                <X size={15} color="#6b7290" />
+              </button>
+            </div>
+
+            <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ padding: "10px 12px", borderRadius: 10, background: "#1a1d27", border: "1px solid #2a2d3a", fontSize: 12, color: "#7a829c", lineHeight: 1.5 }}>
+                Este número representa los volquetes físicamente en el galpón, independiente de los que figuran en el mapa.
+              </div>
+
+              <div>
+                <label style={{ display: "block", marginBottom: 6, fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#4a4f6a" }}>
+                  Cantidad
+                </label>
+
+                {cargandoGalpon ? (
+                  <div style={{ width: "100%", background: "#151922", border: "1px solid #262b37", borderRadius: 8, padding: "12px 14px", fontSize: 13, color: "#4a4f6a" }}>
+                    Cargando...
+                  </div>
+                ) : (
+                  <input
+                    type="number"
+                    min={0}
+                    max={9999}
+                    value={galponCantidad}
+                    onChange={(e) => setGalponCantidad(e.target.value)}
+                    placeholder="Ej: 3"
+                    style={{ width: "100%", background: "#1a1d27", border: "1px solid #2a2d3a", borderRadius: 8, padding: "12px 14px", fontSize: 14, color: "#e2e5f0", fontFamily: "'DM Mono', monospace", outline: "none" }}
+                  />
+                )}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 10, padding: 16, borderTop: "1px solid #1e2130" }}>
+              <button
+                onClick={() => setGalponModalOpen(false)}
+                disabled={guardandoGalpon}
+                style={{ flex: 1, padding: "11px 14px", borderRadius: 8, background: "#1a1d27", border: "1px solid #2a2d3a", color: "#9ba3c0", fontSize: 13, fontWeight: 600, cursor: guardandoGalpon ? "not-allowed" : "pointer" }}
+              >
+                Cancelar
+              </button>
+
+              <button
+                onClick={guardarGalponStock}
+                disabled={guardandoGalpon || cargandoGalpon}
+                style={{ flex: 1, padding: "11px 14px", borderRadius: 8, background: guardandoGalpon ? "#2a1a4a" : "#7c3aed", border: "none", color: "#fff", fontSize: 13, fontWeight: 700, cursor: guardandoGalpon || cargandoGalpon ? "not-allowed" : "pointer" }}
+              >
+                {guardandoGalpon ? "Guardando..." : "Guardar"}
               </button>
             </div>
           </div>

@@ -120,3 +120,12 @@ export async function fetchPrecioVolquete(): Promise<number> {
 export async function updatePrecioVolquete(valor: number): Promise<void> {
   await api.put("/config/precio-volquete", { valor });
 }
+export async function fetchGalponStock(): Promise<number> {
+  const res = await api.get("/galpon-stock");
+  return Number(res.data?.cantidad ?? 0);
+}
+
+export async function updateGalponStock(cantidad: number): Promise<number> {
+  const res = await api.put("/galpon-stock", { cantidad });
+  return Number(res.data?.cantidad ?? 0);
+}

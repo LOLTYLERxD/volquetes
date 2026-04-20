@@ -89,8 +89,15 @@ export default function VolqueteSidebar({
     [dineroTotal]
   );
 
-  const esPrivado = volquete.esPrivado !== false;
 
+  const esPrivado = volquete.esPrivado !== false;
+const reemplazosCount = useMemo(
+  () =>
+    esPrivado
+      ? Number(volquete.reemplazosTotal ?? 0)
+      : Number(volquete.trasladosTotal ?? 0),
+  [esPrivado, volquete.reemplazosTotal, volquete.trasladosTotal]
+);
   const enAlquiler = volquete.colocado;
   const enAlquilerPrivado = esPrivado && volquete.colocado;
 
@@ -675,6 +682,13 @@ export default function VolqueteSidebar({
             {renderReadOnlyField("Longitud", lng, null, true)}
           </div>
 
+{!esPrivado &&
+  renderReadOnlyField(
+    "Reemplazos",
+    String(reemplazosCount),
+    <RotateCcw size={12} color="#4a4f6a" />,
+    true
+  )}
           {esPrivado && enAlquilerPrivado && (
             <div>
               <label
@@ -896,25 +910,25 @@ export default function VolqueteSidebar({
             (isEmpleado &&
               ((esPrivado && enAlquilerPrivado) ||
                 (!esPrivado && enAlquiler)))) && (
-            <button
-              className="btn-secondary"
-              onClick={() => setConfirmAction("reemplazar")}
-              disabled={esPrivado && !enAlquilerPrivado}
-              title={
-                esPrivado && !enAlquilerPrivado
-                  ? "Solo se puede reemplazar si hay alquiler activo"
-                  : undefined
-              }
-              style={
-                esPrivado && !enAlquilerPrivado
-                  ? { opacity: 0.35, cursor: "not-allowed" }
-                  : {}
-              }
-            >
-              <RotateCcw size={14} />
-              Reemplazar volquete
-            </button>
-          )}
+              <button
+                className="btn-secondary"
+                onClick={() => setConfirmAction("reemplazar")}
+                disabled={esPrivado && !enAlquilerPrivado}
+                title={
+                  esPrivado && !enAlquilerPrivado
+                    ? "Solo se puede reemplazar si hay alquiler activo"
+                    : undefined
+                }
+                style={
+                  esPrivado && !enAlquilerPrivado
+                    ? { opacity: 0.35, cursor: "not-allowed" }
+                    : {}
+                }
+              >
+                <RotateCcw size={14} />
+                Reemplazar volquete
+              </button>
+            )}
 
           {isJefe && (
             <button
@@ -942,9 +956,8 @@ export default function VolqueteSidebar({
       <ConfirmModal
         open={confirmAction === "colocar"}
         title="Confirmar colocación"
-        description={`Se iniciará el alquiler de "${volquete.nombre}" en ${
-          direccion || "la ubicación indicada"
-        }.`}
+        description={`Se iniciará el alquiler de "${volquete.nombre}" en ${direccion || "la ubicación indicada"
+          }.`}
         confirmLabel="Iniciar alquiler"
         variant="primary"
         icon={<MapPin size={16} color="#4f7cff" />}

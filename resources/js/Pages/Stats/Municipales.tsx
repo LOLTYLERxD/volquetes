@@ -99,7 +99,31 @@ a.nav-btn:hover { opacity: 0.8; }
 
   .print-no-break { break-inside: avoid; }
 }
+.table-scroll {
+  overflow-y: auto;
+  max-height: 400px;
+}
 
+.table-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.table-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.table-scroll::-webkit-scrollbar-thumb {
+  background: #252b33;
+  border-radius: 4px;
+}
+.table-scroll::-webkit-scrollbar-thumb:hover {
+  background: #5a6472;
+}
+
+@media print {
+  .table-scroll {
+    overflow-y: visible !important;
+    max-height: none !important;
+  }
+}
 .print-only { display: none; }
 `;
 
@@ -591,7 +615,8 @@ export default function Municipales() {
                   Últimos 10 movimientos
                 </div>
 
-                <div style={{ overflowX: "auto" }}>
+<div className="table-scroll" style={{ overflowX: "auto" }}>
+
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                     <thead>
                       <tr className="print-muted" style={{ color: DARK.muted }}>
@@ -670,7 +695,7 @@ export default function Municipales() {
                   Municipales colocados actualmente
                 </div>
 
-                <div style={{ overflowX: "auto" }}>
+<div className="table-scroll" style={{ overflowX: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                     <tbody>
                       {data.tables.municipalesColocados.map((v) => (

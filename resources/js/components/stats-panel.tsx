@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useEffect, useState } from "react";
-import { X, Truck, Package, Clock, RefreshCw } from "lucide-react";
+import { X, Truck, Package, Clock, RefreshCw, Warehouse } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -84,26 +84,51 @@ function StatCard({
   value,
   icon: Icon,
   accent,
+  accentColor,
 }: {
   label: string;
   value: string | number;
   icon?: any;
   accent?: boolean;
+  accentColor?: string;
 }) {
   return (
-    <div className={`sp-stat-card ${accent ? "sp-stat-card--accent" : ""}`}>
-      {Icon && <Icon size={14} className="sp-stat-icon" />}
+    <div
+      className={`sp-stat-card ${accent ? "sp-stat-card--accent" : ""}`}
+      style={
+        accentColor
+          ? {
+              borderColor: `${accentColor}40`,
+              background: `linear-gradient(135deg, rgba(20,24,29,.96) 55%, ${accentColor}10 100%)`,
+            }
+          : undefined
+      }
+    >
+      {Icon && (
+        <Icon
+          size={14}
+          className="sp-stat-icon"
+          style={accentColor ? { color: accentColor } : undefined}
+        />
+      )}
       <div className="sp-stat-label">{label}</div>
-      <div className="sp-stat-value">{value}</div>
+      <div
+        className="sp-stat-value"
+        style={accentColor ? { color: accentColor } : undefined}
+      >
+        {value}
+      </div>
     </div>
   );
 }
 
 export default function StatsPanel({
   volquetes = [],
+  galponStock = 0,
   onClose,
 }: {
   volquetes?: any[];
+  galponStock?: number;
   onClose: () => void;
 }) {
   const { isJefe } = useAuth();
@@ -144,17 +169,20 @@ export default function StatsPanel({
         });
       })
       .catch(() =>
-        setIngresosHoy({
-          colocacion: 0,
-          reemplazo: 0,
-          traslado: 0,
-          total: 0,
-        })
+        setIngresosHoy({ colocacion: 0, reemplazo: 0, traslado: 0, total: 0 })
       )
       .finally(() => setLoadingIngresos(false));
   }, [isJefe]);
 
-  // ── Privados ──────────────────────────────────────────────────────────────
+  // Regla unificada:
+  // - volquetes = solo los que están operativos/en calle (mapa)
+  // - galponStock = stock separado en galpón
+  const totalGeneral = useMemo(
+    () => volquetes.length + galponStock,
+    [volquetes.length, galponStock]
+  );
+
+  // ── Privados en calle ─────────────────────────────────────────────────────
   const privados = useMemo(
     () => volquetes.filter((v) => v.esPrivado !== false),
     [volquetes]
@@ -165,7 +193,7 @@ export default function StatsPanel({
     [privados]
   );
 
-  const libres = useMemo(
+  const libresEnCalle = useMemo(
     () => privados.filter((v) => !v.colocado),
     [privados]
   );
@@ -202,29 +230,29 @@ export default function StatsPanel({
     [privados]
   );
 
-  // ── Municipales ───────────────────────────────────────────────────────────
+  // ── Municipales en calle ──────────────────────────────────────────────────
   const municipales = useMemo(
     () => volquetes.filter((v) => v.esPrivado === false),
     [volquetes]
   );
 
-const reemplazosMunicipales = useMemo(
-  () => municipales.reduce((a, v) => a + Number(v.trasladosTotal ?? 0), 0),
-  [municipales]
-);
+  const reemplazosMunicipales = useMemo(
+    () => municipales.reduce((a, v) => a + Number(v.trasladosTotal ?? 0), 0),
+    [municipales]
+  );
+
   // ── Charts ────────────────────────────────────────────────────────────────
   const estadoData = useMemo(
     () => [
       { name: "En alquiler", value: colocados.length },
-      { name: "Libres", value: libres.length },
+      { name: "Libres en calle", value: libresEnCalle.length },
       { name: "Vencidos", value: vencidos.length },
     ],
-    [colocados.length, libres.length, vencidos.length]
+    [colocados.length, libresEnCalle.length, vencidos.length]
   );
 
   const dineroData = useMemo(() => {
     if (!ingresosHoy) return [];
-
     return [
       { name: "Colocación", value: ingresosHoy.colocacion },
       { name: "Reemplazo", value: ingresosHoy.reemplazo },
@@ -531,14 +559,8 @@ const reemplazosMunicipales = useMemo(
           box-shadow: 0 10px 25px rgba(0,0,0,.25);
         }
 
-        .sp-tooltip-label {
-          color: var(--sp-muted);
-        }
-
-        .sp-tooltip-value {
-          color: var(--sp-accent);
-          font-weight: 700;
-        }
+        .sp-tooltip-label { color: var(--sp-muted); }
+        .sp-tooltip-value { color: var(--sp-accent); font-weight: 700; }
 
         .sp-stat-grid {
           display: grid;
@@ -547,9 +569,7 @@ const reemplazosMunicipales = useMemo(
         }
 
         @media (max-width: 640px) {
-          .sp-stat-grid {
-            grid-template-columns: 1fr;
-          }
+          .sp-stat-grid { grid-template-columns: 1fr; }
         }
 
         .sp-stat-card {
@@ -563,8 +583,7 @@ const reemplazosMunicipales = useMemo(
 
         .sp-stat-card--accent {
           border-color: rgba(245,200,66,.25);
-          background:
-            linear-gradient(135deg, rgba(20,24,29,.96) 55%, rgba(245,200,66,.08) 100%);
+          background: linear-gradient(135deg, rgba(20,24,29,.96) 55%, rgba(245,200,66,.08) 100%);
         }
 
         .sp-stat-icon {
@@ -637,6 +656,54 @@ const reemplazosMunicipales = useMemo(
           box-shadow: 0 0 14px rgba(245,200,66,.25);
         }
 
+        .sp-galpon-card {
+          background: linear-gradient(135deg, rgba(20,24,29,.96) 55%, rgba(167,139,250,.08) 100%);
+          border: 1px solid rgba(167,139,250,.25);
+          border-radius: 18px;
+          padding: 16px 16px 15px;
+          box-shadow: var(--sp-shadow);
+          display: flex;
+          align-items: center;
+          gap: 16px;
+        }
+
+        .sp-galpon-icon {
+          width: 44px;
+          height: 44px;
+          border-radius: 12px;
+          background: rgba(167,139,250,.12);
+          border: 1px solid rgba(167,139,250,.22);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #a78bfa;
+          flex-shrink: 0;
+        }
+
+        .sp-galpon-label {
+          font-family: var(--sp-font-mono);
+          font-size: 9px;
+          font-weight: 700;
+          letter-spacing: .12em;
+          text-transform: uppercase;
+          color: var(--sp-muted);
+          margin-bottom: 6px;
+        }
+
+        .sp-galpon-value {
+          font-family: var(--sp-font-mono);
+          font-size: 30px;
+          font-weight: 800;
+          color: #a78bfa;
+          line-height: 1;
+        }
+
+        .sp-galpon-sub {
+          font-size: 11px;
+          color: var(--sp-muted);
+          margin-top: 4px;
+        }
+
         .sp-loading {
           display: flex;
           align-items: center;
@@ -658,7 +725,7 @@ const reemplazosMunicipales = useMemo(
             <div>
               <div className="sp-header-title">Estadísticas</div>
               <div className="sp-header-sub">
-                {volquetes.length} volquetes cargados
+                {totalGeneral} volquetes totales · {volquetes.length} en calle · {galponStock} en galpón
               </div>
             </div>
           </div>
@@ -676,7 +743,7 @@ const reemplazosMunicipales = useMemo(
 
           <div className="sp-donut-grid">
             <Donut
-              title="Estado · Privados"
+              title="Estado · Privados en calle"
               data={estadoData}
               colors={["#22c55e", "#3b82f6", "#ef4444"]}
               centerText={`${ocupacionPct}%`}
@@ -708,49 +775,40 @@ const reemplazosMunicipales = useMemo(
 
           <div className="sp-occ-bar-wrap">
             <div className="sp-occ-bar-header">
-              <span className="sp-occ-bar-label">
-                Ocupación de flota privada
-              </span>
+              <span className="sp-occ-bar-label">Ocupación de flota privada en calle</span>
               <span className="sp-occ-bar-pct">{ocupacionPct}%</span>
             </div>
             <div className="sp-occ-track">
-              <div
-                className="sp-occ-fill"
-                style={{ width: `${ocupacionPct}%` }}
-              />
+              <div className="sp-occ-fill" style={{ width: `${ocupacionPct}%` }} />
+            </div>
+          </div>
+
+          <div className="sp-galpon-card">
+            <div className="sp-galpon-icon">
+              <Warehouse size={20} />
+            </div>
+            <div>
+              <div className="sp-galpon-label">Stock en galpón</div>
+              <div className="sp-galpon-value">{galponStock}</div>
+              <div className="sp-galpon-sub">
+                {galponStock === 1 ? "volquete disponible" : "volquetes disponibles"}
+              </div>
             </div>
           </div>
 
           <div className="sp-section-label">Métricas clave</div>
 
           <div className="sp-stat-grid">
-            <StatCard
-              label="Total volquetes"
-              value={volquetes.length}
-              icon={Package}
-            />
-            <StatCard label="Privados" value={privados.length} icon={Truck} />
-            <StatCard
-              label="Prom. días colocado"
-              value={promedioDias}
-              icon={Clock}
-              accent
-            />
-            <StatCard
-              label="Reemplazos totales"
-              value={reemplazosTotales}
-              icon={RefreshCw}
-            />
+            <StatCard label="Total volquetes" value={totalGeneral} icon={Package} />
+            <StatCard label="Privados en calle" value={privados.length} icon={Truck} />
+            <StatCard label="Prom. días colocado" value={promedioDias} icon={Clock} accent />
+            <StatCard label="Reemplazos totales" value={reemplazosTotales} icon={RefreshCw} />
           </div>
 
           <div className="sp-section-label">Municipales</div>
 
           <div className="sp-stat-grid">
-            <StatCard
-              label="Total municipales"
-              value={municipales.length}
-              icon={Truck}
-            />
+            <StatCard label="Total municipales" value={municipales.length} icon={Truck} />
             <StatCard
               label="Reemplazos municipales"
               value={reemplazosMunicipales}

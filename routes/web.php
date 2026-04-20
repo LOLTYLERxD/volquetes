@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AlquilerVolqueteController;
 use App\Http\Controllers\Api\ConfiguracionController;
 use App\Http\Controllers\DashboardStatsController;
 use App\Http\Controllers\DashboardMunicipalesStatsController;
+use App\Http\Controllers\Api\GalponStockController;
 
 Route::get('/', function () {
     return redirect()->route('dashboard');
@@ -22,6 +23,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
+
 require __DIR__.'/auth.php';
 
 Route::middleware(['auth'])->prefix('api')->group(function () {
@@ -32,6 +34,7 @@ Route::middleware(['auth'])->prefix('api')->group(function () {
     Route::post('/volquetes/{volquete}/trasladar', [AlquilerVolqueteController::class, 'trasladar']);
     Route::patch('/volquetes/{volquete}/nota', [AlquilerVolqueteController::class, 'actualizarNota']);
     Route::post('/volquetes/{volquete}/reemplazar', [AlquilerVolqueteController::class, 'reemplazar']);
+        Route::get('/galpon-stock', [GalponStockController::class, 'show']);
 
     Route::middleware('role:jefe')->group(function () {
         Route::post('/volquetes', [AlquilerVolqueteController::class, 'crearVolquete']);
@@ -40,10 +43,11 @@ Route::middleware(['auth'])->prefix('api')->group(function () {
         Route::get('/volquetes/{volquete}/alquileres', [AlquilerVolqueteController::class, 'alquileres']);
         Route::get('/dashboard/stats', DashboardStatsController::class);
         Route::get('/dashboard/municipales/stats', DashboardMunicipalesStatsController::class);
-
+        Route::put('/galpon-stock', [GalponStockController::class, 'update']);
+        
         Route::get('/config/precio-volquete', [ConfiguracionController::class, 'getPrecioVolquete']);
         Route::put('/config/precio-volquete', [ConfiguracionController::class, 'updatePrecioVolquete']);
-    });
+        });
 });
 
 Route::middleware(['auth', 'role:jefe'])->group(function () {

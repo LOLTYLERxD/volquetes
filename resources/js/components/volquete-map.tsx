@@ -90,6 +90,7 @@ function getMarkerIcon(state: VisualState, isSelected = false) {
 interface VolqueteMapProps {
   volquetes: Volquete[];
   statsVolquetes: Volquete[];
+  galponStock: number;
   selectedVolquete: Volquete | null;
   onSelectVolquete: (volquete: Volquete) => void;
   onMapClick?: (lat: number, lng: number) => void;
@@ -99,6 +100,7 @@ interface VolqueteMapProps {
 export default function VolqueteMap({
   volquetes,
   statsVolquetes,
+  galponStock,
   selectedVolquete,
   onSelectVolquete,
   onMapClick,
@@ -446,6 +448,39 @@ export default function VolqueteMap({
               </div>
             )
           )}
+
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: "#a78bfa",
+                boxShadow: "0 0 6px #a78bfa80",
+                flexShrink: 0,
+              }}
+            />
+            <span
+              style={{
+                fontSize: 12,
+                color: mapTheme === "dark" ? "#9ba3c0" : "#4b5563",
+                minWidth: 150,
+              }}
+            >
+              En galpón
+            </span>
+            <span
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: "#a78bfa",
+                fontFamily: "monospace",
+                marginLeft: "auto",
+              }}
+            >
+              {galponStock}
+            </span>
+          </div>
         </div>
 
         {isAddingMode && (

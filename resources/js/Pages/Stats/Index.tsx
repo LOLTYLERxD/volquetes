@@ -123,6 +123,30 @@ a.nav-btn:hover { opacity: 0.8; }
   /* Evitar cortes en bloques grandes */
   .print-no-break { break-inside: avoid; }
 }
+  .table-scroll {
+  overflow-y: auto;
+}
+
+.table-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.table-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.table-scroll::-webkit-scrollbar-thumb {
+  background: #252b33;
+  border-radius: 4px;
+}
+.table-scroll::-webkit-scrollbar-thumb:hover {
+  background: #5a6472;
+}
+
+@media print {
+  .table-scroll {
+    overflow-y: visible !important;
+    max-height: none !important;
+  }
+}
 
 /* Ocultar en pantalla */
 .print-only { display: none; }
@@ -211,7 +235,7 @@ export default function StatsIndex() {
             style={{ background: DARK.surface2, border: `1px solid ${DARK.border}`, color: DARK.text, borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+              <polyline points="6 9 6 2 18 2 18 9" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect x="6" y="14" width="12" height="8" />
             </svg>
             Imprimir PDF
           </button>
@@ -348,7 +372,8 @@ export default function StatsIndex() {
             <div className="print-grid-2col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               <div className="print-surface print-no-break" style={{ background: DARK.surface, border: `1px solid ${DARK.border}`, borderRadius: 10, padding: "20px" }}>
                 <div className="print-muted" style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: DARK.muted, marginBottom: 14 }}>Últimos movimientos</div>
-                <div style={{ overflowX: "auto" }}>
+                <div className="table-scroll" style={{ overflowX: "auto" }}>
+
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                     <thead>
                       <tr className="print-muted" style={{ color: DARK.muted }}>
@@ -379,7 +404,7 @@ export default function StatsIndex() {
 
               <div className="print-surface print-no-break" style={{ background: DARK.surface, border: `1px solid ${DARK.border}`, borderRadius: 10, padding: "20px" }}>
                 <div className="print-muted" style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: DARK.muted, marginBottom: 14 }}>Alquileres activos</div>
-                <div style={{ overflowX: "auto" }}>
+                <div className="table-scroll" style={{ overflowX: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                     <thead>
                       <tr className="print-muted" style={{ color: DARK.muted }}>
